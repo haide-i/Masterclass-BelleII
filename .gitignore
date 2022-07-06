@@ -1,0 +1,6 @@
+*checkpoint*
+.jupyter/*
+.ipython/*
+.config/*
+.cache/*
+.local/*

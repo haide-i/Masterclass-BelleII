@@ -75,7 +75,7 @@ class Tracker:
         return line_collection
     
     def check_hit(self, particle):
-        d= particle.radius*particle.charge
+        d = particle.radius*particle.charge
         a=(self.segments.radius**2)/(2*d)
         h=np.sqrt(abs(self.segments.radius**2-a**2))
         x2=a*(particle.x)/d   
@@ -85,6 +85,10 @@ class Tracker:
         y4=y2+h*(particle.x)/d
         
         theta = np.arctan2(y4,x4)
+
+        mask = theta < 0:
+        theta[mask] += 2*np.pi
+
         return (theta > self.segments.begin) & (theta < self.segments.end)
     
     def mark_hits(self, particle):
