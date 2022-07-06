@@ -86,7 +86,7 @@ class Tracker:
         
         theta = np.arctan2(y4,x4)
 
-        mask = theta < 0:
+        mask = theta < 0
         theta[mask] += 2*np.pi
 
         return (theta > self.segments.begin) & (theta < self.segments.end)
