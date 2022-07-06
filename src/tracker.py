@@ -75,7 +75,7 @@ class Tracker:
         return line_collection
     
     def check_hit(self, particle):
-        d=particle.radius
+        d= particle.radius*particle.charge
         a=(self.segments.radius**2)/(2*d)
         h=np.sqrt(abs(self.segments.radius**2-a**2))
         x2=a*(particle.x)/d   
