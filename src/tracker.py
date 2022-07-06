@@ -67,11 +67,16 @@ class Tracker:
             for i in range(4):
                 self.sizes.append(s)
         
-        
+    def get_colors(self):
+        colors_tracking = self.segments.query("type=='tracking'")["color"]
+        colors_ecl = self.segments.query("type=='ecl'")["color"].repeat(4)
+        colors = pd.concat([colors_tracking, colors_ecl])
+        return colors
+
     
     def get_collection(self):
         self.set_colors()
-        line_collection = LineCollection(self.lines, color = self.segments["color"], linewidths = self.sizes)
+        line_collection = LineCollection(self.lines, color = self.get_colors(), linewidths = self.sizes)
         return line_collection
     
     def check_hit(self, particle):
