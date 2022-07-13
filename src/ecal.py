@@ -1,3 +1,4 @@
+from matplotlib.pyplot import sca
 import pandas as pd
 from copy import deepcopy
 import numpy as np
@@ -7,7 +8,7 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
 
 class ECal:
-    def __init__(self, nrows, ncols, particles,  crystal_edge = 0.5, noise = 0):
+    def __init__(self, nrows, ncols, particles,  crystal_edge = 0.5, noise_rate = 0):
         column_names = ["x", "y", "edge", "content", "edgecolor", "facecolor", "center", "patch"]
         self.particles = particles
         self.n_particles = len(self.particles)
@@ -18,8 +19,8 @@ class ECal:
         for c in range(ncols):
             for r in range(nrows):
                 content = 0
-                if np.random.rand() < noise:
-                    content = np.random.rand()
+                if np.random.rand() < noise_rate:
+                    content = np.random.normal(loc = 0.25, scale = 0.1)
                 x = r*crystal_edge
                 y =  c*crystal_edge
                 edge = crystal_edge-0.1
