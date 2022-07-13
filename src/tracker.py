@@ -1,3 +1,4 @@
+from copy import deepcopy
 from matplotlib.collections import LineCollection
 import numpy as np
 import pandas as pd
@@ -25,7 +26,7 @@ class Tracker:
     def __init__(self, layers, n_segments, k = 2, noise = False):
         self.noise = noise
         self.n_segments = n_segments
-        self.col_names = ["radius", "begin", "end", "lines", "size", "content", "selected", "type", "color"]
+        self.col_names = ["radius", "begin", "end", "lines", "size", "content", "selected", "type", "facecolor", "edgecolor"]
         self.segments = pd.DataFrame(columns = self.col_names)
         counter = 0
         for l in range(layers):
@@ -37,8 +38,8 @@ class Tracker:
                 content = "noise" if np.random.rand()<self.noise else "empty"
                 selected = "not"
                 lines = get_track_line(radius, begin, end)
-                size = 8
-                self.segments.loc[counter] = [radius, begin, end, lines, size, content, selected, "tracking", "black"]
+                size = 3
+                self.segments.loc[counter] = [radius, begin, end, lines, size, content, selected, "tracking", "gray", "black"]
                 counter += 1
         l = layers
         len_segment = 2*np.pi/(n_segments+k*l)
@@ -50,27 +51,36 @@ class Tracker:
             selected = "not"
             lines = get_ecl_lines(radius, begin, end, 1)
             size = 2
-            self.segments.loc[counter] = [radius, begin, end, lines, size, content, selected, "ecl", "black"]
+            self.segments.loc[counter] = [radius, begin, end, lines, size, content, selected, "ecl", "gray", "black"]
             counter += 1
         self.lines = []
+        
+        # tack edgeline list at the front
         for lx, ly in self.segments.query("type=='tracking'")["lines"]:
             self.lines.append([lx,ly])
+        self.edge_lines = deepcopy(self.lines)
         for pair_list in self.segments.query("type=='ecl'")["lines"]:
             for pair in pair_list:
                 self.lines.append(pair)
+        for lx, ly in self.segments.query("type=='tracking'")["lines"]:
+            self.lines.append([lx,ly])
         self.lines = np.array(self.lines)
         self.lines = np.moveaxis(self.lines,1,-1)
+        
         self.sizes = []
         for s in self.segments.query("type=='tracking'")["size"]:
-            self.sizes.append(s)
+            self.sizes.append(8)
         for s in self.segments.query("type=='ecl'")["size"]:
             for i in range(4):
                 self.sizes.append(s)
+        for s in self.segments.query("type=='tracking'")["size"]:
+            self.sizes.append(s)
         
     def get_colors(self):
-        colors_tracking = self.segments.query("type=='tracking'")["color"]
-        colors_ecl = self.segments.query("type=='ecl'")["color"].repeat(4)
-        colors = pd.concat([colors_tracking, colors_ecl])
+        colors_tracking = self.segments.query("type=='tracking'")["edgecolor"]
+        colors_ecl = self.segments.query("type=='ecl'")["edgecolor"].repeat(4)
+        colors_edges= self.segments.query("type=='tracking'")["facecolor"]
+        colors = pd.concat([colors_tracking, colors_ecl, colors_edges])
         return colors
 
     
@@ -105,7 +115,8 @@ class Tracker:
         self.segments.loc[hit_segments,"selected"] = "selected" if not hidden else "hidden"
     
     def set_colors(self):
-        self.segments.loc[:,"color"] = "gray"
-        self.segments.loc[self.segments["content"]!='empty', "color"] = "red"
-        self.segments.loc[self.segments["selected"]=='selected',"color"] = "blue"
-        self.segments.loc[self.segments["selected"]=='hidden' , "color"] = "teal"
+        self.segments.loc[:,"edgecolor"] = "gray"
+        self.segments.loc[:,"facecolor"] = "gray"
+        self.segments.loc[self.segments["content"]!='empty', "facecolor"] = "red"
+        self.segments.loc[self.segments["selected"]=='selected',"edgecolor"] = "blue"
+        self.segments.loc[self.segments["selected"]=='hidden' , "edgecolor"] = "teal"
