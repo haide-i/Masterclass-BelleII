@@ -94,7 +94,7 @@ class Tracker:
         mask = theta < 0
         theta[mask] += 2*np.pi
 
-        return (theta > self.segments.begin) & (theta < self.segments.end)
+        return (theta > self.segments.begin) & (theta < self.segments.end) & (self.segments.radius <= 2*particle.radius)
     
     def mark_hits(self, particle):
         hit_segments = self.check_hit(particle)
