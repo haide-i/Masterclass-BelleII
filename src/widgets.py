@@ -1,15 +1,23 @@
 import ipywidgets as widgets
 from matplotlib import pyplot as plt
 import numpy as np
+from src.ecal import ECal
 from src.particle import Particle
 from src.tracker import Tracker
+import pandas as pd
 
+from matplotlib.widgets import LassoSelector
+from matplotlib.path import Path
+from matplotlib.colors import to_rgba_array
 
 class TrackingWidget:
-    def __init__(self, particles_df, B = 0.1):
+    def __init__(self, data_path, B = 0.1):
+        self.particles_df = pd.read_hdf(data_path)
+        self.particles_df.loc[:,'charge'] = self.particles_df.loc[:,'pdg']/abs(self.particles_df.loc[:,'pdg'])
+        self.particles_df.loc[:,'phi'] = self.particles_df.loc[:,'phi']*np.pi/180
+        self.particles_df.reset_index(inplace = True, drop = True)
         self.tracker = Tracker(8,1,k=2, noise = 0.1)
-        self.particles_df = particles_df
-        self.n_particles = len(particles_df)
+        self.n_particles = len(self.particles_df)
         self.B = B
         self.particles_df.loc[:, "radius"] = self.particles_df.loc[:,"pt"]/(self.particles_df.loc[:,"charge"]*self.B)
         self.particles = []
@@ -17,7 +25,7 @@ class TrackingWidget:
         self.index = 0
         for i in range(self.n_particles):
             # buidl actual particles
-            p_df = particles_df.iloc[i]
+            p_df = self.particles_df.iloc[i]
             p = Particle(p_df["radius"], p_df["phi"], B, p_df["charge"])
             self.particles.append(p)
             self.tracker.mark_hits(p)
@@ -76,6 +84,56 @@ class TrackingWidget:
         display(self.tabs, self.out)  
         self.update(1)            
 
-            
+  
+class ECLWidget:
+
+    def __init__(self, data_path):
+        data = pd.read_hdf(data_path)
+        coords = [f'{i}' for i in np.arange(0, 6624)]
+        hits = data[coords]
+        hits = hits.reset_index(drop=True)
+        self.ecal = ECal(144,46,hits, crystal_edge=5, noise = 0.01)    
+        #self.subplot_kw = dict(xlim=(-5,725), ylim=(-5,235), autoscale_on=False)
+        
+        fig, ax = plt.subplots(figsize=(16,9))#, subplot_kw=self.subplot_kw, dpi=400)
+        ax.add_collection(self.ecal.collection)
+        self.crystall_points = ax.scatter(self.ecal.crystals_df["x"], self.ecal.crystals_df["y"], s=0)
+        self.xys = self.crystall_points.get_offsets()
+        self.Npts = len(self.xys)
+        self.canvas = ax.figure.canvas
+        self.lasso = LassoSelector(ax, onselect=self.onselect)
+        self.ind = []
+        self.particle_index = 0
+        
+    def onselect(self, verts):
+        path = Path(verts)
+        self.ind = np.nonzero(path.contains_points(self.xys))[0]
+        self.ecal.select_particles.loc[self.particle_index, :] = 0
+        self.ecal.select_particles.loc[self.particle_index, self.ind.astype(str)] = 1
+        self.ecal.set_colors(self.particle_index)
+        facecolors = to_rgba_array(self.ecal.crystals_df.loc[:,"facecolor"].to_numpy())
+        edgecolors = to_rgba_array(self.ecal.crystals_df.loc[:,"edgecolor"].to_numpy())
+        self.ecal.collection.set_edgecolors(edgecolors)
+        self.ecal.collection.set_facecolors(facecolors)
+        self.canvas.draw_idle()
+        particle_mask = self.ecal.select_particles.loc[self.particle_index, :].to_numpy()>0
+        energy = self.ecal.crystals_df.loc[particle_mask, "content"].sum()
+        self.energy_label.value = f"Energy of selected Cluster: {str(round(energy,4))} GeV"
+        
+    def change_particle(self,change):
+        self.particle_index = self.particle.value
+        self.onselect([(0,0)])
+        
+    def show(self):
+        self.particle = widgets.Dropdown(options = [i for i in range(self.ecal.n_particles)], value = 0, description = "Particle")
+        self.particle.observe(self.change_particle, names = "value")
+        self.energy_label = widgets.Label("Energy of selected Cluster: 0 GeV")
+        self.box = widgets.HBox([self.particle, self.energy_label])
+        self.out = widgets.Output()
+        display(self.box, self.out)
+        self.onselect([(0,0)])
+        plt.show()
+        
+               
         
         
