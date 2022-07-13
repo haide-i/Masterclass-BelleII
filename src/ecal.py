@@ -7,7 +7,7 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
 
 class ECal:
-    def __init__(self, nrows, ncols, particles,  crystal_edge = 1, noise = 0):
+    def __init__(self, nrows, ncols, particles,  crystal_edge = 0.5, noise = 0):
         column_names = ["x", "y", "edge", "content", "edgecolor", "facecolor", "center", "patch"]
         self.particles = particles
         self.n_particles = len(self.particles)
@@ -37,7 +37,7 @@ class ECal:
     def set_colors(self, selected_index):
         not_centers_mask = self.crystals_df.loc[:,"center"] == False
         self.crystals_df.loc[:,"facecolor"] = "gray"
-        self.crystals_df.loc[:,"edgecolor"] = "black"
+        self.crystals_df.loc[:,"edgecolor"] = "gray"
         selected_mask = self.select_particles.loc[selected_index,:].to_numpy()>0
         self.crystals_df.loc[selected_mask, "edgecolor"] = "blue"
         hidden_mask = np.zeros(len(self.crystals_df))
