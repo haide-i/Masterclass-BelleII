@@ -11,12 +11,12 @@ from matplotlib.path import Path
 from matplotlib.colors import to_rgba_array
 
 class TrackingWidget:
-    def __init__(self, data_path, B = 0.1):
+    def __init__(self, data_path, B = 0.1, layers = 8, n_segments = 1, k = 2, noise = False):
         self.particles_df = pd.read_hdf(data_path)
         self.particles_df.loc[:,'charge'] = self.particles_df.loc[:,'pdg']/abs(self.particles_df.loc[:,'pdg'])
         self.particles_df.loc[:,'phi'] = self.particles_df.loc[:,'phi']*np.pi/180
         self.particles_df.reset_index(inplace = True, drop = True)
-        self.tracker = Tracker(8,1,k=2, noise = 0.1)
+        self.tracker = Tracker(layers = layers, n_segments = n_segments,k=k ,noise = noise)
         self.n_particles = len(self.particles_df)
         self.B = B
         self.particles_df.loc[:, "radius"] = self.particles_df.loc[:,"pt"]/(self.particles_df.loc[:,"charge"]*self.B)
