@@ -49,7 +49,7 @@ class Tracker:
             content = "noise" if np.random.rand()<self.noise else "empty"
             selected = "not"
             lines = get_ecl_lines(radius, begin, end, 1)
-            size = 1
+            size = 2
             self.segments.loc[counter] = [radius, begin, end, lines, size, content, selected, "ecl", "black"]
             counter += 1
         self.lines = []
