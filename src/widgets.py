@@ -1,12 +1,8 @@
 import ipywidgets as widgets
 from matplotlib import pyplot as plt
 import numpy as np
-<<<<<<< HEAD
 from src.particle import Particle, ToyParticle
-=======
 from src.ecal import ECal
-from src.particle import Particle
->>>>>>> 7014ae320b041549c1090452fda7b90d16ef9ba3
 from src.tracker import Tracker
 import pandas as pd
 
