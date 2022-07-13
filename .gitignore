@@ -1,6 +1,7 @@
-*checkpoint*
+*checkpoint.ipynb
 .jupyter/*
 .ipython/*
 .config/*
 .cache/*
 .local/*
+src/__pycache*
