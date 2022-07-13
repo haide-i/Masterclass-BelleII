@@ -6,6 +6,8 @@ from src.particle import Particle
 from src.tracker import Tracker
 import pandas as pd
 
+from copy import deepcopy
+
 from matplotlib.widgets import LassoSelector
 from matplotlib.path import Path
 from matplotlib.colors import to_rgba_array
@@ -92,7 +94,10 @@ class ECLWidget:
         coords = [f'{i}' for i in np.arange(0, 6624)]
         hits = data[coords]
         hits = hits.reset_index(drop=True)
-        self.ecal = ECal(144,46,hits, crystal_edge=5, noise = 0.01)    
+        self.ecal = ECal(144,46,hits, crystal_edge=5, noise = 0.01)   
+        content = deepcopy(self.ecal.crystals_df["content"])
+        #content = np.log(content)
+        self.alphas = np.clip(content,0.25,1)
         #self.subplot_kw = dict(xlim=(-5,725), ylim=(-5,235), autoscale_on=False)
         
         fig, ax = plt.subplots(figsize=(16,9))#, subplot_kw=self.subplot_kw, dpi=400)
@@ -112,6 +117,9 @@ class ECLWidget:
         self.ecal.select_particles.loc[self.particle_index, self.ind.astype(str)] = 1
         self.ecal.set_colors(self.particle_index)
         facecolors = to_rgba_array(self.ecal.crystals_df.loc[:,"facecolor"].to_numpy())
+        content_mask = (self.ecal.crystals_df["content"]>0).to_numpy()
+        facecolors.T[-1] = 0.5 
+        facecolors[content_mask,-1] = self.alphas[content_mask]
         edgecolors = to_rgba_array(self.ecal.crystals_df.loc[:,"edgecolor"].to_numpy())
         self.ecal.collection.set_edgecolors(edgecolors)
         self.ecal.collection.set_facecolors(facecolors)
