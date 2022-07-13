@@ -107,5 +107,5 @@ class Tracker:
     def set_colors(self):
         self.segments.loc[:,"color"] = "gray"
         self.segments.loc[self.segments["content"]!='empty', "color"] = "red"
-        self.segments.loc[self.segments["selected"]=='selected',"color"] = "green"
-        self.segments.loc[self.segments["selected"]=='hidden' , "color"] = "seagreen"
+        self.segments.loc[self.segments["selected"]=='selected',"color"] = "blue"
+        self.segments.loc[self.segments["selected"]=='hidden' , "color"] = "teal"

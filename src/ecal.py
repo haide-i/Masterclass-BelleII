@@ -39,13 +39,13 @@ class ECal:
         self.crystals_df.loc[:,"facecolor"] = "gray"
         self.crystals_df.loc[:,"edgecolor"] = "black"
         selected_mask = self.select_particles.loc[selected_index,:].to_numpy()>0
-        self.crystals_df.loc[selected_mask, "edgecolor"] = "green"
+        self.crystals_df.loc[selected_mask, "edgecolor"] = "blue"
         hidden_mask = np.zeros(len(self.crystals_df))
         for i in range(self.n_particles):
             if i != selected_index:
                 hidden_mask += self.select_particles.loc[i,:].to_numpy()
         hidden_mask = hidden_mask > 0
-        self.crystals_df.loc[hidden_mask, "edgecolor"] = "seagreen"
+        self.crystals_df.loc[hidden_mask, "edgecolor"] = "teal"
         hit_mask = self.crystals_df["content"] > 0
         self.crystals_df.loc[hit_mask,"facecolor"] = "red"
     
