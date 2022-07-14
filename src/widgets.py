@@ -42,13 +42,12 @@ class TrackingWidget:
     def update(self,change):
         [l.remove() for l in self.ax.lines]
         self.tracker.segments["selected"] = "not"
-        for i, wr in enumerate(self.r):
-            self.select_particles[i].radius = wr.value
         for i, wphi in enumerate(self.phi):
             self.select_particles[i].phi = wphi.value
         for i, wcharge in enumerate(self.charge):
-            self.select_particles[i].charge = wcharge.value*2-1
-
+            self.select_particles[i].charge = -1 if wcharge.value == "negative Ladung" else 1
+        for i, wr in enumerate(self.r):
+            self.select_particles[i].radius = wr.value/(self.select_particles[i].charge*self.B)
         for j in range(self.n_particles):
             self.tracker.set_particle_selection(self.select_particles[j], hidden = True)
         self.tracker.set_particle_selection(self.select_particles[self.index], hidden = False)
@@ -69,11 +68,11 @@ class TrackingWidget:
         self.charge = []
         self.box_list = []
         for i in range(self.n_particles):
-            self.r.append(widgets.FloatSlider(self.select_particles[i].radius ,min = 0, max = 20, step = 0.1, description = "radius"))
+            self.r.append(widgets.FloatSlider(self.select_particles[i].radius ,min = 0, max = 20, step = 0.1, description = r"$p_T$"))
             self.r[i].observe(self.update, names = "value")
             self.phi.append(widgets.FloatSlider(self.select_particles[0].phi ,min = -np.pi, max = np.pi, step = 0.1, description = f"$\phi$"))
             self.phi[i].observe(self.update, names = "value")
-            self.charge.append(widgets.Checkbox((self.select_particles[0].charge > 0), description = "positive charge"))
+            self.charge.append(widgets.RadioButtons(options=['positive Ladung', 'negative Ladung'],  description=''))
             self.charge[i].observe(self.update, names = "value")
             p_box = widgets.VBox([self.r[i],self.phi[i], self.charge[i]])
             self.box_list.append(p_box)
