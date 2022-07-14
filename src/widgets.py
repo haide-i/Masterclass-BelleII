@@ -50,13 +50,14 @@ class TrackingWidget:
         for i, wcharge in enumerate(self.charge):
             self.select_particles[i].charge = -1 if wcharge.value == "negative Ladung" else 1
         for i, wr in enumerate(self.r):
-            self.select_particles[i].radius = wr.value/(self.select_particles[i].charge*self.B)
+            self.select_particles[i].radius = wr.value/self.B
         for j in range(self.n_particles):
             self.tracker.set_particle_selection(self.select_particles[j], hidden = True)
         self.tracker.set_particle_selection(self.select_particles[self.index], hidden = False)
         tracker_collection = self.tracker.get_collection()
         self.select_particles[self.index].draw(self.ax)
         self.ax.add_collection(tracker_collection)
+        self.ax.legend()
             
     def show(self):
         self.fig, self.ax = plt.subplots(figsize=(10,10))
@@ -64,8 +65,6 @@ class TrackingWidget:
         self.ax.set_xlim([-10,10])
         tracker_collection = self.tracker.get_collection()
         self.ax.add_collection(tracker_collection)
-        #self.particle = widgets.Dropdown(options = [i for i in range(self.n_particles)], value = 0, description = "Particle")
-        #self.particle.observe(self.change_particle, names = "value")
         self.r = []
         self.phi = []
         self.charge = []
@@ -87,7 +86,12 @@ class TrackingWidget:
         self.out = widgets.Output()
         display(self.tabs, self.out)  
         self.update(1)            
-
+    
+    def get_fitted_particles(self):
+        df = pd.DataFrame(columns = ["pt", "phi", "charge", "radius"])
+        for i in range(tw.n_particles):
+            df.loc[i,:] = [self.select_particles[i].momentum(), self.select_particles[i].phi, self.select_particles[i].charge, self.select_particles[i].radius]
+        return df
 
 
 class TestDetektor:
