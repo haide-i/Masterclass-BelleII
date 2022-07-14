@@ -88,6 +88,44 @@ class TrackingWidget:
 
 
 
+class TestDetektor:
+    def __init__(self, B=0.1, layers=8, n_segments=1, k=2):
+        self.tracker = Tracker(layers = layers, n_segments = n_segments,k=k ,noise = False)
+        self.B = B
+        self.particle = Particle(1, 0, B,-1)
+        self.pt = 10
+
+    def update(self,change):
+        [l.remove() for l in self.ax.lines]
+        self.tracker.segments["content"] = "empty"
+        self.particle.charge = self.charge_widget.value*2-1
+        self.B = self.b_widget.value
+        self.particle.B = self.B
+
+        self.particle.radius = self.pt/self.B if self.B != 0 else 100000
+        self.tracker.mark_hits(self.particle)
+        tracker_collection = self.tracker.get_collection()
+        self.particle.draw(self.ax)
+        self.ax.add_collection(tracker_collection)
+
+    def show(self):
+        self.fig, self.ax = plt.subplots(figsize=(7,7))
+        lim = self.tracker.layers*1.5
+        self.ax.set_ylim([-lim,lim])
+        self.ax.set_xlim([-lim,lim])
+        tracker_collection = self.tracker.get_collection()
+        self.ax.add_collection(tracker_collection)
+        
+        self.b_widget = widgets.FloatSlider(1 ,min = 0.000001, max = 10, step = 0.1, description = "B-Feld")
+        self.b_widget.observe(self.update, names = "value")
+        self.charge_widget= widgets.Checkbox((True), description = "positive charge")
+        self.charge_widget.observe(self.update, names = "value")
+        self.out = widgets.Output()
+        p_box = widgets.VBox([self.b_widget,self.charge_widget])
+        display(p_box, self.out)  
+        self.update(1)    
+        self.update(1)   
+
 class ptWidget:
     def __init__(self,  noise=0.0, nlayers=8,nsegments=1, axlim=[-10,10]):
         self.tracker = Tracker(nlayers,nsegments,k=2, noise = noise)

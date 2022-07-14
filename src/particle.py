@@ -22,8 +22,7 @@ class Particle:
         y = abs(self.radius)*np.sin(theta+self.phi)+ self.y
         c = "blue" #if self.radius<0 else "red"
         ax.plot(x,y,color = c, label=f'$p_T$ = {round(self.momentum(),5)} GeV, Q = {self.charge}')
-        plt.legend()
-
+        
 
 class ToyParticle:
     def __init__(self,r, phi, B=1., charge=1., momentum=1.):

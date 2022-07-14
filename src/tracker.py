@@ -24,6 +24,7 @@ def get_ecl_lines(radius, begin, end, width):
 
 class Tracker:
     def __init__(self, layers, n_segments, k = 2, noise = False):
+        self.layers = layers
         self.noise = noise
         self.n_segments = n_segments
         self.col_names = ["radius", "begin", "end", "lines", "size", "content", "selected", "type", "facecolor", "edgecolor"]
@@ -78,7 +79,7 @@ class Tracker:
         
     def get_colors(self):
         colors_tracking = self.segments.query("type=='tracking'")["edgecolor"]
-        colors_ecl = self.segments.query("type=='ecl'")["edgecolor"].repeat(4)
+        colors_ecl = self.segments.query("type=='ecl'")["facecolor"].repeat(4)
         colors_edges= self.segments.query("type=='tracking'")["facecolor"]
         colors = pd.concat([colors_tracking, colors_ecl, colors_edges])
         return colors
@@ -104,7 +105,7 @@ class Tracker:
         mask = theta < 0
         theta[mask] += 2*np.pi
 
-        return (theta > self.segments.begin) & (theta < self.segments.end) & (self.segments.radius <= 2*particle.radius)
+        return (theta > self.segments.begin) & (theta < self.segments.end) & (self.segments.radius <= abs(2*particle.radius))
     
     def mark_hits(self, particle):
         hit_segments = self.check_hit(particle)
