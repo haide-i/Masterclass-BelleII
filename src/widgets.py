@@ -71,7 +71,7 @@ class TrackingWidget:
         self.charge = []
         self.box_list = []
         for i in range(self.n_particles):
-            self.r.append(widgets.FloatSlider(self.select_particles[i].radius ,min = 0, max = 20, step = 0.1, description = r"$p_T$"))
+            self.r.append(widgets.FloatSlider(self.select_particles[i].radius ,min = 0, max = 10, step = 0.05, description = r"$p_T$"))
             self.r[i].observe(self.update, names = "value")
             self.phi.append(widgets.FloatSlider(self.select_particles[0].phi ,min = -np.pi, max = np.pi, step = 0.1, description = f"$\phi$"))
             self.phi[i].observe(self.update, names = "value")
