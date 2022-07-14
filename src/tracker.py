@@ -80,6 +80,8 @@ class Tracker:
     def get_colors(self):
         colors_tracking = self.segments.query("type=='tracking'")["edgecolor"]
         colors_ecl = self.segments.query("type=='ecl'")["facecolor"].repeat(4)
+        select_mask = self.segments.loc[:,"selected"] =="selected"
+        colors_ecl[select_mask] = self.segments.query("type=='ecl'")[select_mask]["edgecolor"].repeat(4)
         colors_edges= self.segments.query("type=='tracking'")["facecolor"]
         colors = pd.concat([colors_tracking, colors_ecl, colors_edges])
         return colors
