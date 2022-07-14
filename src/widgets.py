@@ -99,10 +99,10 @@ class TestDetektor:
         [l.remove() for l in self.ax.lines]
         self.tracker.segments["content"] = "empty"
         self.particle.charge = self.charge_widget.value*2-1
-        self.B = self.b_widget.value
+        self.B = self.b_widget.value/5
         self.particle.B = self.B
 
-        self.particle.radius = self.pt/self.B if self.B != 0 else 100000
+        self.particle.radius = self.pt_widget.value/self.B if self.B != 0 else 100000
         self.tracker.mark_hits(self.particle)
         tracker_collection = self.tracker.get_collection()
         self.particle.draw(self.ax)
@@ -116,12 +116,14 @@ class TestDetektor:
         tracker_collection = self.tracker.get_collection()
         self.ax.add_collection(tracker_collection)
         
-        self.b_widget = widgets.FloatSlider(1 ,min = 0.000001, max = 10, step = 0.1, description = "B-Feld")
+        self.pt_widget= widgets.FloatSlider(1 ,min = 0.1, max = 4, step = 0.1, description = f"$p_t$")
+        self.pt_widget.observe(self.update, names = "value")
+        self.b_widget= widgets.Checkbox((False), description = "B-Feld")
         self.b_widget.observe(self.update, names = "value")
-        self.charge_widget= widgets.Checkbox((True), description = "positive charge")
+        self.charge_widget= widgets.Checkbox((True), description = "positive Ladung")
         self.charge_widget.observe(self.update, names = "value")
         self.out = widgets.Output()
-        p_box = widgets.VBox([self.b_widget,self.charge_widget])
+        p_box = widgets.VBox([self.pt_widget, self.b_widget,self.charge_widget])
         display(p_box, self.out)  
         self.update(1)    
         self.update(1)   
