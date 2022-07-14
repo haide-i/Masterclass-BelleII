@@ -14,6 +14,9 @@ from matplotlib.colors import to_rgba_array
 
 class TrackingWidget:
     def __init__(self, data_path, B = 0.1, layers = 8, n_segments = 1, k = 2, noise = False):
+        if layers > 20:
+            print("Es sind Maximal 20 Ebenen möglich!")
+            layers = 20
         self.particles_df = pd.read_hdf(data_path)
         self.particles_df.loc[:,'charge'] = self.particles_df.loc[:,'pdg']/abs(self.particles_df.loc[:,'pdg'])
         self.particles_df.loc[:,'phi'] = self.particles_df.loc[:,'phi']*np.pi/180
