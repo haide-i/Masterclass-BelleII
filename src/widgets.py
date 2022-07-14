@@ -32,7 +32,7 @@ class TrackingWidget:
             self.particles.append(p)
             self.tracker.mark_hits(p)
             # build dummy particles used for selection
-            p = Particle(np.random.rand()*10, np.random.rand()*2*np.pi -np.pi, B, np.random.randint(0,1)*2-1)
+            p = Particle(0.00001, 0, B, np.random.randint(0,1)*2-1)
             self.select_particles.append(p)
     
     def change_particle(self,change):
