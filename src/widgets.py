@@ -181,12 +181,12 @@ class ptWidget:
   
 class ECLWidget:
 
-    def __init__(self, data_path):
+    def __init__(self, data_path, noise_rate = 0.01):
         data = pd.read_hdf(data_path)
         coords = [f'{i}' for i in np.arange(0, 6624)]
         hits = data[coords]
         hits = hits.reset_index(drop=True)
-        self.ecal = ECal(144,46,hits, crystal_edge=5, noise = 0.01)   
+        self.ecal = ECal(144,46,hits, crystal_edge=5, noise_rate = noise_rate)   
         content = deepcopy(self.ecal.crystals_df["content"])
         #content = np.log(content)
         self.alphas = np.clip(content,0.25,1)
