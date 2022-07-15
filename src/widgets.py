@@ -85,11 +85,12 @@ class TrackingWidget:
         self.tabs.observe(self.change_particle, names = "selected_index")
         self.out = widgets.Output()
         display(self.tabs, self.out)  
-        self.update(1)            
-    
+        self.update(1)  
+                  
+    @property
     def get_fitted_particles(self):
         df = pd.DataFrame(columns = ["pt", "phi", "charge", "radius"])
-        for i in range(tw.n_particles):
+        for i in range(self.n_particles):
             df.loc[i,:] = [self.select_particles[i].momentum(), self.select_particles[i].phi, self.select_particles[i].charge, self.select_particles[i].radius]
         return df
 
