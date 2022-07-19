@@ -75,7 +75,7 @@ class TrackingWidget:
                 self.select_particles[self.index].draw(self.ax)
         else:
             self.select_particles[self.index].draw(self.ax)
-            
+
         self.ax.add_collection(tracker_collection)
         if self.n_particles > 1:
             phi = self.arrows_phi[self.index]
@@ -290,7 +290,7 @@ class ECLWidget:
         return pd.DataFrame(energys, columns = ["Energie"])
 
 
-truth_particles = pd.DataFrame(columns = ["Ladung", "Masse"], data=[[1,0.0511]], index=["e+"])
+truth_particles = pd.DataFrame(columns = ["Ladung", "Masse"], data=[[1,0.0511],[-1, 0.0511]], index=["e+", "e-"])
 
 class MatchingWidget:
     def __init__(self, ew, tw) -> None:
@@ -305,6 +305,8 @@ class MatchingWidget:
         self.res_df.loc[sele_index, "Ladung"] = self.momenta.loc[sele_index, "Ladung"]
         self.res_df.loc[sele_index, "Momentum"] = np.sqrt((self.momenta.loc[sele_index, ["px", "py", "pz"]]**2).sum().astype("float"))
         self.res_df.loc[:, "Masse"] = np.sqrt(self.res_df.loc[:, "Energie"]**2 - self.res_df.loc[:, "Momentum"]**2)
+        self.charge_comp[sele_index].value = str(self.res_df.loc[sele_index, "Ladung"] - truth_particles.loc[self.part_ids[sele_index].value, "Ladung"])
+        self.mass_comp[sele_index].value = str(self.res_df.loc[sele_index, "Masse"] - truth_particles.loc[self.part_ids[sele_index].value, "Masse"])
         for i in range(len(self.res_df)):
             self.energy_txt[i].value = str(self.res_df.loc[sele_index, "Energie"])
             self.charge_txt[i].value = str(self.res_df.loc[sele_index, "Ladung"])
@@ -317,16 +319,23 @@ class MatchingWidget:
         self.charge_txt = []
         self.moment_txt = []
         self.invmas_txt = []
+        self.mass_comp = []
+        self.charge_comp = []
+        self.part_ids = []
         for i in range(len(self.res_df)):
             self.energy_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Energie", disabled = True))
             self.charge_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Ladung", disabled = True))
             self.moment_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Momentum", disabled = True))
             self.invmas_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Masse", disabled = True))
             self.partic_list = widgets.HTML(value= truth_particles.to_html(), description = "bekannte Teilchen")
-            self.part_id = widgets.Dropdown(options = truth_particles.index, value = "e+", description = "Teilchenname")
+            self.part_ids.append(widgets.Select(options = truth_particles.index, value = "e+", description = "Teilchenname"))
             self.out = widgets.Output()
             self.res_box = widgets.VBox(children=[self.energy_txt[i], self.charge_txt[i], self.moment_txt[i], self.invmas_txt[i]])
-            box = widgets.HBox(children=[self.res_box, self.partic_list])
+            self.mass_comp.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Massendifferenz", disabled = True))
+            self.charge_comp.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Ladungsdifferenz", disabled = True))
+            self.comb_box = widgets.VBox(children=[self.mass_comp[i], self.charge_comp[i]])
+            hbox = widgets.HBox(children=[self.res_box, self.part_ids[i], self.comb_box])
+            box = widgets.VBox(children=[hbox, self.partic_list])
             boxes.append(box)
         self.tabs = widgets.Tab(children=boxes)
         self.tabs.observe(self.update, "selected_index")
