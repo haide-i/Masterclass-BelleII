@@ -68,10 +68,14 @@ class TrackingWidget:
             self.tracker.set_particle_selection(self.select_particles[j], hidden = True)
         self.tracker.set_particle_selection(self.select_particles[self.index], hidden = False)
         tracker_collection = self.tracker.get_collection()
-        if self.truthbutton.value:
-            self.truth_particles[self.index].draw(self.ax)
+        if self.show_truthbutton:
+            if self.truthbutton.value:
+                self.truth_particles[self.index].draw(self.ax)
+            else:
+                self.select_particles[self.index].draw(self.ax)
         else:
             self.select_particles[self.index].draw(self.ax)
+            
         self.ax.add_collection(tracker_collection)
         if self.n_particles > 1:
             phi = self.arrows_phi[self.index]
