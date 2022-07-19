@@ -16,10 +16,11 @@ from matplotlib.path import Path
 from matplotlib.colors import to_rgba_array
 
 class TrackingWidget:
-    def __init__(self, data_path, B = 0.1, layers = 8, n_segments = 1, k = 2, dist = 0.2, noise = 0.2):
+    def __init__(self, data_path, B = 0.1, layers = 8, n_segments = 1, k = 2, dist = 0.2, noise = 0.2, show_truthbutton = False):
         if layers > 20:
             print("Es sind Maximal 20 Ebenen möglich!")
             layers = 20
+        self.show_truthbutton = show_truthbutton
         self.particles_df = pd.read_hdf(data_path)
         self.particles_df.loc[:,'charge'] = self.particles_df.loc[:,'pdg']/abs(self.particles_df.loc[:,'pdg'])
         self.particles_df.loc[:,'phi'] = self.particles_df.loc[:,'phi']*np.pi/180
@@ -93,8 +94,9 @@ class TrackingWidget:
         self.phi = []
         self.charge = []
         self.box_list = []
-        self.truthbutton = widgets.ToggleButton(value = False, description = "Zeige wahres Teilchen")
-        self.truthbutton.observe(self.update, names = "value")
+        if self.show_truthbutton:
+            self.truthbutton = widgets.ToggleButton(value = False, description = "Zeige wahres Teilchen")
+            self.truthbutton.observe(self.update, names = "value")
         for i in range(self.n_particles):
             self.r.append(widgets.FloatSlider(0 ,min = 0, max = 5, step = 0.01, description = r"$p_T$"))
             self.r[i].observe(self.update, names = "value")
@@ -102,8 +104,10 @@ class TrackingWidget:
             self.phi[i].observe(self.update, names = "value")
             self.charge.append(widgets.RadioButtons(options=['positive Ladung', 'negative Ladung'],  description=''))
             self.charge[i].observe(self.update, names = "value")
-            
-            p_box = widgets.VBox([self.r[i],self.phi[i], self.charge[i], self.truthbutton])
+            if self.show_truthbutton:
+                p_box = widgets.VBox([self.r[i],self.phi[i], self.charge[i], self.truthbutton])
+            else:
+                p_box = widgets.VBox([self.r[i],self.phi[i], self.charge[i]])
             self.box_list.append(p_box)
         self.tabs = widgets.Tab()
         self.tabs.children = self.box_list
