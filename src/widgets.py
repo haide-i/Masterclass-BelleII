@@ -1,3 +1,4 @@
+from faulthandler import disable
 import ipywidgets as widgets
 from matplotlib import pyplot as plt
 import numpy as np
@@ -8,12 +9,14 @@ import pandas as pd
 
 from copy import deepcopy
 
+from  matplotlib.patches import FancyArrowPatch
+
 from matplotlib.widgets import LassoSelector
 from matplotlib.path import Path
 from matplotlib.colors import to_rgba_array
 
 class TrackingWidget:
-    def __init__(self, data_path, B = 0.1, layers = 8, n_segments = 1, k = 2, noise = False):
+    def __init__(self, data_path, B = 0.1, layers = 8, n_segments = 1, k = 2, dist = 0.2, noise = 0.2):
         if layers > 20:
             print("Es sind Maximal 20 Ebenen möglich!")
             layers = 20
@@ -21,22 +24,30 @@ class TrackingWidget:
         self.particles_df.loc[:,'charge'] = self.particles_df.loc[:,'pdg']/abs(self.particles_df.loc[:,'pdg'])
         self.particles_df.loc[:,'phi'] = self.particles_df.loc[:,'phi']*np.pi/180
         self.particles_df.reset_index(inplace = True, drop = True)
-        self.tracker = Tracker(layers = layers, n_segments = n_segments,k=k ,noise = noise)
+        self.tracker = Tracker(layers = layers, n_segments = n_segments,k=k,dist=dist,noise = noise)
         self.n_particles = len(self.particles_df)
         self.B = B
         self.particles_df.loc[:, "radius"] = self.particles_df.loc[:,"pt"]/(self.particles_df.loc[:,"charge"]*self.B)
         self.particles = []
         self.select_particles = []
+        self.truth_particles = []
         self.index = 0
+        self.arrows_phi = []
         for i in range(self.n_particles):
             # buidl actual particles
             p_df = self.particles_df.iloc[i]
             p = Particle(p_df["radius"], p_df["phi"], B, p_df["charge"])
+            self.truth_particles.append(p)
+            # make an arrow to corresponding ecl crystal
+            mask = self.tracker.check_hit(p)
+            phi = self.tracker.segments[mask].iloc[-1][["begin", "end"]].mean()
             self.particles.append(p)
             self.tracker.mark_hits(p)
             # build dummy particles used for selection
             p = Particle(0.00001, 0, B, np.random.randint(0,1)*2-1)
             self.select_particles.append(p)
+            
+            self.arrows_phi.append(phi)
     
     def change_particle(self,change):
         self.index = self.tabs.selected_index
@@ -44,6 +55,7 @@ class TrackingWidget:
 
     def update(self,change):
         [l.remove() for l in self.ax.lines]
+        [p.remove() for p in self.ax.patches]
         self.tracker.segments["selected"] = "not"
         for i, wphi in enumerate(self.phi):
             self.select_particles[i].phi = -wphi.value
@@ -55,28 +67,43 @@ class TrackingWidget:
             self.tracker.set_particle_selection(self.select_particles[j], hidden = True)
         self.tracker.set_particle_selection(self.select_particles[self.index], hidden = False)
         tracker_collection = self.tracker.get_collection()
-        self.select_particles[self.index].draw(self.ax)
+        if self.truthbutton.value:
+            self.truth_particles[self.index].draw(self.ax)
+        else:
+            self.select_particles[self.index].draw(self.ax)
         self.ax.add_collection(tracker_collection)
+        if self.n_particles > 1:
+            phi = self.arrows_phi[self.index]
+            r = self.tracker.layers+2
+            rs = r+1
+            x,y = (np.cos(phi)*r, np.sin(phi)*r)
+            xs,ys = (np.cos(phi)*rs, np.sin(phi)*rs)
+            arrow = FancyArrowPatch(posA = (xs,ys), posB = (x,y), mutation_scale = 10)  #FancyArrowPatch(**self.arrows[self.index])
+            self.ax.add_patch(arrow)
         self.ax.legend()
             
     def show(self):
         self.fig, self.ax = plt.subplots(figsize=(10,10))
-        self.ax.set_ylim([-10,10])
-        self.ax.set_xlim([-10,10])
+        limit = self.tracker.layers +3
+        self.ax.set_ylim([-limit, limit])
+        self.ax.set_xlim([-limit, limit])
         tracker_collection = self.tracker.get_collection()
         self.ax.add_collection(tracker_collection)
         self.r = []
         self.phi = []
         self.charge = []
         self.box_list = []
+        self.truthbutton = widgets.ToggleButton(value = False, description = "Zeige wahres Teilchen")
+        self.truthbutton.observe(self.update, names = "value")
         for i in range(self.n_particles):
-            self.r.append(widgets.FloatSlider(self.select_particles[i].radius ,min = 0, max = 10, step = 0.05, description = r"$p_T$"))
+            self.r.append(widgets.FloatSlider(0 ,min = 0, max = 5, step = 0.01, description = r"$p_T$"))
             self.r[i].observe(self.update, names = "value")
-            self.phi.append(widgets.FloatSlider(self.select_particles[0].phi ,min = -np.pi, max = np.pi, step = 0.1, description = f"$\phi$"))
+            self.phi.append(widgets.FloatSlider(self.particles_df.loc[i,"phi"] ,min = -np.pi, max = np.pi, step = 0.01, description = f"$\phi$"))
             self.phi[i].observe(self.update, names = "value")
             self.charge.append(widgets.RadioButtons(options=['positive Ladung', 'negative Ladung'],  description=''))
             self.charge[i].observe(self.update, names = "value")
-            p_box = widgets.VBox([self.r[i],self.phi[i], self.charge[i]])
+            
+            p_box = widgets.VBox([self.r[i],self.phi[i], self.charge[i], self.truthbutton])
             self.box_list.append(p_box)
         self.tabs = widgets.Tab()
         self.tabs.children = self.box_list
@@ -86,12 +113,15 @@ class TrackingWidget:
         self.out = widgets.Output()
         display(self.tabs, self.out)  
         self.update(1)  
-                  
+
     @property
     def get_fitted_particles(self):
-        df = pd.DataFrame(columns = ["pt", "phi", "charge", "radius"])
+        df = pd.DataFrame(columns = ["pt", "phi", "Ladung", "radius"])
         for i in range(self.n_particles):
             df.loc[i,:] = [self.select_particles[i].momentum(), self.select_particles[i].phi, self.select_particles[i].charge, self.select_particles[i].radius]
+        df.loc[:,"px"] = np.cos(df.loc[:,"phi"].astype("float"))*df.loc[:,"pt"]
+        df.loc[:,"py"] = np.sin(df.loc[:,"phi"].astype("float"))*df.loc[:, "pt"]
+        df.loc[:, "pz"] = self.particles_df.loc[:,"pz"]
         return df
 
 
@@ -242,7 +272,57 @@ class ECLWidget:
         display(self.box, self.out)
         self.onselect([(0,0)])
         plt.show()
-        
-               
-        
-        
+    
+    @property
+    def get_particles_energy(self):
+        energys = []
+        for i in range(self.ecal.n_particles):
+            particle_mask = self.ecal.select_particles.loc[i, :].to_numpy()>0
+            energys.append(self.ecal.crystals_df.loc[particle_mask, "content"].sum())
+        return pd.DataFrame(energys, columns = ["Energie"])
+
+
+truth_particles = pd.DataFrame(columns = ["Ladung", "Masse"], data=[[1,0.0511]], index=["e+"])
+
+class MatchingWidget:
+    def __init__(self, ew, tw) -> None:
+        self.energies = ew.get_particles_energy
+        self.momenta = tw.get_fitted_particles  
+        columns = ["Ladung", "Energie", "Momentum", "Masse"]
+        self.res_df = pd.DataFrame(data = np.zeros((len(self.energies), len(columns))), columns = columns)
+            
+    def update(self, change = 0):
+        sele_index = self.tabs.selected_index
+        self.res_df.loc[sele_index, "Energie"] = self.energies.loc[sele_index, "Energie"]
+        self.res_df.loc[sele_index, "Ladung"] = self.momenta.loc[sele_index, "Ladung"]
+        self.res_df.loc[sele_index, "Momentum"] = np.sqrt((self.momenta.loc[sele_index, ["px", "py", "pz"]]**2).sum().astype("float"))
+        self.res_df.loc[:, "Masse"] = np.sqrt(self.res_df.loc[:, "Energie"]**2 - self.res_df.loc[:, "Momentum"]**2)
+        for i in range(len(self.res_df)):
+            self.energy_txt[i].value = str(self.res_df.loc[sele_index, "Energie"])
+            self.charge_txt[i].value = str(self.res_df.loc[sele_index, "Ladung"])
+            self.moment_txt[i].value = str(self.res_df.loc[sele_index, "Momentum"])
+            self.invmas_txt[i].value = str(self.res_df.loc[sele_index, "Masse"])
+
+    def show(self):
+        boxes = []
+        self.energy_txt = []
+        self.charge_txt = []
+        self.moment_txt = []
+        self.invmas_txt = []
+        for i in range(len(self.res_df)):
+            self.energy_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Energie", disabled = True))
+            self.charge_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Ladung", disabled = True))
+            self.moment_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Momentum", disabled = True))
+            self.invmas_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Masse", disabled = True))
+            self.partic_list = widgets.HTML(value= truth_particles.to_html(), description = "bekannte Teilchen")
+            self.part_id = widgets.Dropdown(options = truth_particles.index, value = "e+", description = "Teilchenname")
+            self.out = widgets.Output()
+            self.res_box = widgets.VBox(children=[self.energy_txt[i], self.charge_txt[i], self.moment_txt[i], self.invmas_txt[i]])
+            box = widgets.HBox(children=[self.res_box, self.partic_list])
+            boxes.append(box)
+        self.tabs = widgets.Tab(children=boxes)
+        self.tabs.observe(self.update, "selected_index")
+        for i in range(len(self.res_df)):
+            self.tabs.set_title(i,f"Teilchen {i}")
+        self.update()
+        display(self.tabs, self.out)

@@ -23,7 +23,7 @@ def get_ecl_lines(radius, begin, end, width):
         return [inner_x, inner_y], [outer_x, outer_y], [right_x, right_y], [left_x, left_y]
 
 class Tracker:
-    def __init__(self, layers, n_segments, k = 2, noise = False):
+    def __init__(self, layers, n_segments, k = 2, dist = 0.2, noise = False):
         self.layers = layers
         self.noise = noise
         self.n_segments = n_segments
@@ -34,24 +34,24 @@ class Tracker:
             len_segment = 2*np.pi/(n_segments+k*l)
             for i in range(n_segments+k*l):
                 radius = l
-                begin = len_segment*i+(0.2/(l+1))
-                end = len_segment*(i+1)-(0.2)/(l+1)
+                begin = len_segment*i+dist/(l+1)
+                end = len_segment*(i+1)-dist/(l+1)
                 content = "noise" if np.random.rand()<self.noise else "empty"
                 selected = "not"
                 lines = get_track_line(radius, begin, end)
-                size = 3
+                size = 5
                 self.segments.loc[counter] = [radius, begin, end, lines, size, content, selected, "tracking", "gray", "black"]
                 counter += 1
         l = layers
-        len_segment = 2*np.pi/(n_segments+k*l)
-        for i in range(n_segments+k*l):
+        len_segment = 2*np.pi/(n_segments)#+k*l)
+        for i in range(n_segments):#+k*l):
             radius = l
-            begin = len_segment*i+(0.2/(l+1))
-            end = len_segment*(i+1)-(0.2)/(l+1)
+            begin = len_segment*i+(dist/(l+1))
+            end = len_segment*(i+1)-(dist)/(l+1)
             content = "noise" if np.random.rand()<self.noise else "empty"
             selected = "not"
             lines = get_ecl_lines(radius, begin, end, 1)
-            size = 2
+            size = 3
             self.segments.loc[counter] = [radius, begin, end, lines, size, content, selected, "ecl", "gray", "black"]
             counter += 1
         self.lines = []
