@@ -16,7 +16,7 @@ from matplotlib.path import Path
 from matplotlib.colors import to_rgba_array
 
 class TrackingWidget:
-    def __init__(self, data_path, B = 0.1, layers = 8, n_segments = 1, k = 2, dist = 0.2, noise = 0.2, show_truthbutton = False):
+    def __init__(self, data_path, B = 0.1, layers = 8, n_segments = 1, ecl_segments = 30, k = 2, dist = 0.2, noise = 0.2, show_truthbutton = False):
         if layers > 20:
             print("Es sind Maximal 20 Ebenen möglich!")
             layers = 20
@@ -25,7 +25,7 @@ class TrackingWidget:
         self.particles_df.loc[:,'charge'] = self.particles_df.loc[:,'pdg']/abs(self.particles_df.loc[:,'pdg'])
         self.particles_df.loc[:,'phi'] = self.particles_df.loc[:,'phi']*np.pi/180
         self.particles_df.reset_index(inplace = True, drop = True)
-        self.tracker = Tracker(layers = layers, n_segments = n_segments,k=k,dist=dist,noise = noise)
+        self.tracker = Tracker(layers = layers, n_segments = n_segments, ecl_segments=ecl_segments, k=k,dist=dist,noise = noise)
         self.n_particles = len(self.particles_df)
         self.B = B
         self.particles_df.loc[:, "radius"] = self.particles_df.loc[:,"pt"]/(self.particles_df.loc[:,"charge"]*self.B)
@@ -289,8 +289,21 @@ class ECLWidget:
             energys.append(self.ecal.crystals_df.loc[particle_mask, "content"].sum())
         return pd.DataFrame(energys, columns = ["Energie"])
 
-
-truth_particles = pd.DataFrame(columns = ["Ladung", "Masse"], data=[[1,0.0511],[-1, 0.0511]], index=["e+", "e-"])
+true_particle_data = [[0.511, 1],
+                      [0.511, -1],
+                      [105., -1],
+                     [105., +1],
+                     [1776., -1],
+                     [1776., +1],
+                     [938.3, +1],
+                     [938.3, -1],
+                     [939.6, 0],
+                      [135, 0],
+                     [139.6, +1],
+                      [139.6, -1]]
+true_particle_names = ["e+", "e-", "mu+", "mu-", "tau+", "tau-", "Proton", "Antiproton", "Neutron", "pi0", "pi+", "pi-"]
+truth_particles = pd.DataFrame(columns = ["Masse", "Ladung"], data=true_particle_data, index=true_particle_names)
+truth_particles.loc[:, "Masse"] = truth_particles["Masse"]*10**(-3)
 
 class MatchingWidget:
     def __init__(self, ew, tw) -> None:
@@ -341,5 +354,6 @@ class MatchingWidget:
         self.tabs.observe(self.update, "selected_index")
         for i in range(len(self.res_df)):
             self.tabs.set_title(i,f"Teilchen {i}")
+            self.mass_comp[i].value = str(
         self.update()
         display(self.tabs, self.out)

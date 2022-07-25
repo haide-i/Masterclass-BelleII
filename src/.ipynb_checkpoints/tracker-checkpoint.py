@@ -23,10 +23,11 @@ def get_ecl_lines(radius, begin, end, width):
         return [inner_x, inner_y], [outer_x, outer_y], [right_x, right_y], [left_x, left_y]
 
 class Tracker:
-    def __init__(self, layers, n_segments, k = 2, dist = 0.2, noise = False):
+    def __init__(self, layers, n_segments, ecl_segments, k = 2, dist = 0.2, noise = False):
         self.layers = layers
         self.noise = noise
         self.n_segments = n_segments
+        self.ecl_segments = ecl_segments
         self.col_names = ["radius", "begin", "end", "lines", "size", "content", "selected", "type", "facecolor", "edgecolor"]
         self.segments = pd.DataFrame(columns = self.col_names)
         counter = 0
@@ -43,8 +44,8 @@ class Tracker:
                 self.segments.loc[counter] = [radius, begin, end, lines, size, content, selected, "tracking", "gray", "black"]
                 counter += 1
         l = layers
-        len_segment = 2*np.pi/(n_segments+8)#+k*l)
-        for i in range(n_segments + 8):#+k*l):
+        len_segment = 2*np.pi/(self.ecl_segments)#+k*l)
+        for i in range(self.ecl_segments):#+k*l):
             radius = l
             begin = len_segment*i+(dist/(l+1))
             end = len_segment*(i+1)-(dist)/(l+1)
