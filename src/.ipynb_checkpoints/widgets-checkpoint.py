@@ -354,6 +354,5 @@ class MatchingWidget:
         self.tabs.observe(self.update, "selected_index")
         for i in range(len(self.res_df)):
             self.tabs.set_title(i,f"Teilchen {i}")
-            self.mass_comp[i].value = str(
         self.update()
         display(self.tabs, self.out)
