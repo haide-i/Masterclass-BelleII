@@ -134,8 +134,8 @@ class TrackingWidget:
 
 
 class TestDetektor:
-    def __init__(self, B=0.1, layers=8, n_segments=1, k=2):
-        self.tracker = Tracker(layers = layers, n_segments = n_segments,k=k ,noise = False)
+    def __init__(self, B=0.1, layers=8, n_segments=1,ecl_segments=10, k=2):
+        self.tracker = Tracker(layers = layers, n_segments = n_segments,k=k ,ecl_segments=ecl_segments,noise = False)
         self.B = B
         self.particle = Particle(1, 0, B,-1)
         self.pt = 10
@@ -143,7 +143,8 @@ class TestDetektor:
     def update(self,change):
         [l.remove() for l in self.ax.lines]
         self.tracker.segments["content"] = "empty"
-        self.particle.charge = self.charge_widget.value*2-1
+        self.particle.charge = -1 if self.charge_widget.value == "negative Ladung" else 1
+        #self.particle.charge = self.charge_widget.value*2-1
         self.B = self.b_widget.value/5
         self.particle.B = self.B
 
@@ -165,7 +166,7 @@ class TestDetektor:
         self.pt_widget.observe(self.update, names = "value")
         self.b_widget= widgets.Checkbox((False), description = "B-Feld")
         self.b_widget.observe(self.update, names = "value")
-        self.charge_widget= widgets.Checkbox((True), description = "positive Ladung")
+        self.charge_widget= widgets.RadioButtons(options=['positive Ladung', 'negative Ladung'],  description='')
         self.charge_widget.observe(self.update, names = "value")
         self.out = widgets.Output()
         p_box = widgets.VBox([self.pt_widget, self.b_widget,self.charge_widget])
