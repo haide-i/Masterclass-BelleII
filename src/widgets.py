@@ -321,7 +321,9 @@ class MatchingWidget:
         self.res_df.loc[sele_index, "Energie"] = self.energies.loc[sele_index, "Energie"]
         self.res_df.loc[sele_index, "Ladung"] = self.momenta.loc[sele_index, "Ladung"]
         self.res_df.loc[sele_index, "Momentum"] = np.sqrt((self.momenta.loc[sele_index, ["px", "py", "pz"]]**2).sum().astype("float"))
+        # if self.res_df.loc[:, "Energie"] > self.res_df.loc[:, "Momentum"]:
         self.res_df.loc[:, "Masse"] = np.sqrt(self.res_df.loc[:, "Energie"]**2 - self.res_df.loc[:, "Momentum"]**2)
+        self.res_df.loc[:, "Masse"] = self.res_df.loc[:, "Masse"].fillna(0)
         self.charge_comp[sele_index].value = str(self.res_df.loc[sele_index, "Ladung"] - truth_particles.loc[self.part_ids[sele_index].value, "Ladung"])
         self.mass_comp[sele_index].value = str(self.res_df.loc[sele_index, "Masse"] - truth_particles.loc[self.part_ids[sele_index].value, "Masse"])
         for i in range(len(self.res_df)):
