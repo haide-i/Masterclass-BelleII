@@ -21,7 +21,7 @@ class ECal:
             for r in range(nrows):
                 content = 0
                 if np.random.rand() < noise_rate:
-                    content = np.random.normal(loc = 0.25, scale = 0.1)
+                    content = np.random.normal(loc = 0.025, scale = 0.01)
                 x = r*crystal_edge
                 y =  c*crystal_edge
                 edge = crystal_edge-0.1

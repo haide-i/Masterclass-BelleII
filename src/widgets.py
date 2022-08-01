@@ -228,10 +228,13 @@ class ptWidget:
   
 class ECLWidget:
 
-    def __init__(self, data_path, noise_rate = 0.01):
+    def __init__(self, data_path, noise_rate = 0.01, idx=None):
         data = pd.read_hdf(data_path)
         coords = [f'{i}' for i in np.arange(0, 6624)]
-        hits = data[coords]
+        if idx is None:
+            hits = data[coords]
+        else:
+            hits = data[coords].iloc[idx:(idx+1)]
         hits = hits.reset_index(drop=True)
         self.ecal = ECal(144,46,hits, crystal_edge=5, noise_rate = noise_rate)   
         content = deepcopy(self.ecal.crystals_df["content"])
@@ -354,6 +357,6 @@ class MatchingWidget:
         self.tabs.observe(self.update, "selected_index")
         for i in range(len(self.res_df)):
             self.tabs.set_title(i,f"Teilchen {i}")
-            self.mass_comp[i].value = str(
+            # self.mass_comp[i].value = str(
         self.update()
         display(self.tabs, self.out)

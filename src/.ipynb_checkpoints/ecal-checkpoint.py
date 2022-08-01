@@ -13,7 +13,7 @@ class ECal:
         self.particles = particles
         self.n_particles = len(self.particles)
         self.crystals_df = pd.DataFrame(columns = column_names)
-        self.center = self.particles.idxmax(axis=1).to_numpy().astype('int')
+        # self.center = self.particles.idxmax(axis=1).to_numpy().astype('int')
         self.select_particles = deepcopy(self.particles)
         self.select_particles.loc[:,:] = 0
         counter = 0
@@ -21,7 +21,7 @@ class ECal:
             for r in range(nrows):
                 content = 0
                 if np.random.rand() < noise_rate:
-                    content = np.random.normal(loc = 0.25, scale = 0.1)
+                    content = np.random.normal(loc = 0.025, scale = 0.01)
                 x = r*crystal_edge
                 y =  c*crystal_edge
                 edge = crystal_edge-0.1
