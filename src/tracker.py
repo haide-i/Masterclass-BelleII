@@ -40,7 +40,7 @@ class Tracker:
                 content = "noise" if np.random.rand()<self.noise else "empty"
                 selected = "not"
                 lines = get_track_line(radius, begin, end)
-                size = 5
+                size = 8
                 self.segments.loc[counter] = [radius, begin, end, lines, size, content, selected, "tracking", "gray", "black"]
                 counter += 1
         l = layers
@@ -71,7 +71,7 @@ class Tracker:
         
         self.sizes = []
         for s in self.segments.query("type=='tracking'")["size"]:
-            self.sizes.append(8)
+            self.sizes.append(15)
         for s in self.segments.query("type=='ecl'")["size"]:
             for i in range(4):
                 self.sizes.append(s)

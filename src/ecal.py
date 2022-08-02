@@ -8,7 +8,7 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
 
 class ECal:
-    def __init__(self, nrows, ncols, particles,  crystal_edge = 0.5, noise_rate = 0):
+    def __init__(self, nrows, ncols, particles,  crystal_edge = 0.5, noise_rate = 0, linewidth = 1.75):
         column_names = ["x", "y", "edge", "content", "edgecolor", "facecolor", "center", "patch"]
         self.particles = particles
         self.n_particles = len(self.particles)
@@ -24,8 +24,8 @@ class ECal:
                     content = np.random.normal(loc = 0.025, scale = 0.01)
                 x = r*crystal_edge
                 y =  c*crystal_edge
-                edge = crystal_edge-0.1
-                patch = Rectangle((x, y), edge, edge, edgecolor = "black", facecolor = "gray", linewidth = 1)
+                edge = crystal_edge-linewidth/4
+                patch = Rectangle((x, y), edge, edge, edgecolor = "black", facecolor = "gray", linewidth = linewidth)
                 self.crystals_df.loc[counter,column_names] = [x,y, edge, content, "black", "gray", False, patch]
                 counter += 1
         for i in range(self.n_particles):
@@ -51,7 +51,7 @@ class ECal:
                 hidden_mask += self.select_particles.loc[i,:].to_numpy()
         hidden_mask = hidden_mask > 0
         self.crystals_df.loc[hidden_mask, "edgecolor"] = "lightyellow"
-        self.crystals_df.loc[center,"edgecolor"] = "purple"
+        self.crystals_df.loc[center,"edgecolor"] = "black"
         hit_mask = self.crystals_df["content"] > 0
         self.crystals_df.loc[hit_mask,"facecolor"] = "red"
     
