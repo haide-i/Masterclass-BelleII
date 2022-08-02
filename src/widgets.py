@@ -16,7 +16,7 @@ from matplotlib.path import Path
 from matplotlib.colors import to_rgba_array
 
 class TrackingWidget:
-    def __init__(self, data_path, B = 0.1, layers = 8, n_segments = 1, ecl_segments = 30, k = 2, dist = 0.2, noise = 0.2, show_truthbutton = False):
+    def __init__(self, data_path, B = 0.4, layers = 8, n_segments = 5, ecl_segments = 30, k = 4, dist = 0.1, noise = 0.01, show_truthbutton = False):
         if layers > 20:
             print("Es sind Maximal 20 Ebenen möglich!")
             layers = 20
@@ -300,6 +300,7 @@ class MatchingWidget:
             self.invmas_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Masse", disabled = True))
             self.partic_list = widgets.HTML(value= truth_particles.to_html(), description = "bekannte Teilchen")
             self.part_ids.append(widgets.Select(options = truth_particles.index, value = "e+", description = "Teilchenname"))
+            self.part_ids[i].observe(self.update, "value")
             self.out = widgets.Output()
             self.res_box = widgets.VBox(children=[self.energy_txt[i], self.charge_txt[i], self.moment_txt[i], self.invmas_txt[i]])
             self.mass_comp.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Massendifferenz", disabled = True))
