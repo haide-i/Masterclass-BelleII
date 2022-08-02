@@ -137,7 +137,7 @@ class TestDetektor:
         if layers > 20:
             print("Es sind maximal 20 Schichten möglich!")
             layers = 20
-        self.tracker = Tracker(layers = layers, n_segments = n_segments,k=k ,ecl_segments=ecl_segments,noise = False)
+        self.tracker = Tracker(layers = layers, n_segments = n_segments,k=k ,ecl_segments=ecl_segments,noise = False, linewidth = 4)
         self.B = B
         self.particle = Particle(1, 0, B,-1)
         self.pt = 10

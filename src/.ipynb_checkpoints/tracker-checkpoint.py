@@ -23,7 +23,7 @@ def get_ecl_lines(radius, begin, end, width):
         return [inner_x, inner_y], [outer_x, outer_y], [right_x, right_y], [left_x, left_y]
 
 class Tracker:
-    def __init__(self, layers, n_segments, ecl_segments, k = 2, dist = 0.2, noise = False):
+    def __init__(self, layers, n_segments, ecl_segments, k = 2, dist = 0.2, noise = False, linewidth = 8):
         self.layers = layers
         self.noise = noise
         self.n_segments = n_segments
@@ -40,7 +40,7 @@ class Tracker:
                 content = "noise" if np.random.rand()<self.noise else "empty"
                 selected = "not"
                 lines = get_track_line(radius, begin, end)
-                size = 5
+                size = linewidth
                 self.segments.loc[counter] = [radius, begin, end, lines, size, content, selected, "tracking", "gray", "black"]
                 counter += 1
         l = layers
@@ -71,7 +71,7 @@ class Tracker:
         
         self.sizes = []
         for s in self.segments.query("type=='tracking'")["size"]:
-            self.sizes.append(8)
+            self.sizes.append(s*2)
         for s in self.segments.query("type=='ecl'")["size"]:
             for i in range(4):
                 self.sizes.append(s)
