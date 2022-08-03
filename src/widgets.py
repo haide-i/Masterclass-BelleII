@@ -16,7 +16,7 @@ from matplotlib.path import Path
 from matplotlib.colors import to_rgba_array
 
 class TrackingWidget:
-    def __init__(self, data_path, B = 0.4, layers = 8, n_segments = 5, ecl_segments = 30, k = 4, dist = 0.1, noise = 0.01, show_truthbutton = False):
+    def __init__(self, data_path, B = 0.4, layers = 8, n_segments = 5, ecl_segments = 30, k = 4, dist = 0.1, noise = 0.05, show_truthbutton = False):
         if layers > 20:
             print("Es sind Maximal 20 Ebenen möglich!")
             layers = 20
@@ -181,7 +181,7 @@ class TestDetektor:
   
 class ECLWidget:
 
-    def __init__(self, data_path, noise_rate = 0.01, idx=None):
+    def __init__(self, data_path, noise_rate = 0.05, idx=None):
         data = pd.read_hdf(data_path)
         coords = [f'{i}' for i in np.arange(0, 6624)]
         if idx is None:
