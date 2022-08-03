@@ -31,7 +31,7 @@ class Tracker:
         self.col_names = ["radius", "begin", "end", "lines", "size", "content", "selected", "type", "facecolor", "edgecolor"]
         self.segments = pd.DataFrame(columns = self.col_names)
         counter = 0
-        for l in range(layers):
+        for l in range(1,layers+1):
             len_segment = 2*np.pi/(n_segments+k*l)
             for i in range(n_segments+k*l):
                 radius = l
@@ -41,9 +41,9 @@ class Tracker:
                 selected = "not"
                 lines = get_track_line(radius, begin, end)
                 size = linewidth
-                self.segments.loc[counter] = [radius, begin, end, lines, size, content, selected, "tracking", "gray", "black"]
+                self.segments.loc[counter,:] = [radius, begin, end, lines, size, content, selected, "tracking", "gray", "black"]
                 counter += 1
-        l = layers
+        l = layers+1
         len_segment = 2*np.pi/(self.ecl_segments)#+k*l)
         for i in range(self.ecl_segments):#+k*l):
             radius = l
@@ -53,7 +53,7 @@ class Tracker:
             selected = "not"
             lines = get_ecl_lines(radius, begin, end, 1)
             size = 3
-            self.segments.loc[counter] = [radius, begin, end, lines, size, content, selected, "ecl", "gray", "black"]
+            self.segments.loc[counter,:] = [radius, begin, end, lines, size, content, selected, "ecl", "gray", "black"]
             counter += 1
         self.lines = []
         
@@ -77,6 +77,8 @@ class Tracker:
                 self.sizes.append(s)
         for s in self.segments.query("type=='tracking'")["size"]:
             self.sizes.append(s)
+        
+        self.segments.loc[:,"radius"] = self.segments.loc[:,"radius"].astype("float")
         
     def get_colors(self):
         colors_tracking = self.segments.query("type=='tracking'")["edgecolor"]

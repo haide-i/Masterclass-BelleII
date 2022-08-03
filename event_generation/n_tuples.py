@@ -51,7 +51,7 @@ class ConcatTask(luigi.Task):
         # remove crystals, that are not in 9x9 around center
         center = df[cells].idxmax(axis=1).to_numpy(dtype='int')
         for i in range(len(df)):
-            df_mask = (abs(int((center[i]/144.))%46 - df[cells].columns.astype(int)/144.%46) < 5) & (abs((center[i])%144 - (df[cells].columns.astype(int))%144) < 5)
+            df_mask = (abs(int((center[i]/144.))%46 - df[cells].columns.astype(int)/144.%46) < 9) & (abs((center[i])%144 - (df[cells].columns.astype(int))%144) < 9)
             df.loc[i, cells] = df.loc[i, cells].where(df_mask, 0.0)
         #fancy code to put all energy into ecl crystalls (important for e.g. muons)
         df['energy_diff'] = df['energy'] - df[cells].sum(axis=1)

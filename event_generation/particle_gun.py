@@ -21,7 +21,7 @@ except ImportError:
 
 class getECLInfo(basf2.Module):
     
-    def __init__(self, output, pdg, theta, phi, p, px, py, pz, pt):
+    def __init__(self, output, pdg, theta, phi, p, px, py, pz, pt, E):
         super().__init__()
         self.output = output
         self.obj_eclgeometrypar = Belle2.ECL.ECLGeometryPar.Instance()
@@ -36,6 +36,7 @@ class getECLInfo(basf2.Module):
         self.py = py
         self.pz = pz
         self.pt = pt
+        self.E = E
 
     def initialize(self):
         self.eventinfo = Belle2.PyStoreObj('EventMetaData')
@@ -91,7 +92,7 @@ class getECLInfo(basf2.Module):
                         correct_mass = mass
                         tot_energy = energy
         
-        if correctpdg and energyinbarrel:               
+        if correctpdg and energyinbarrel and tot_energy == self.E:               
             all_energy = [[e for e in cells.values()]]
             print(np.shape(np.array(all_energy)))
                         
@@ -176,7 +177,7 @@ class EvtGenTask(Basf2PathTask):
         main.add_module(particlegun)
 
         main.add_module('EventInfoSetter',
-                        evtNumList=50)
+                        evtNumList=100)
 
         main.add_module('Gearbox')
         main.add_module('Geometry', useDB=True)
@@ -201,7 +202,8 @@ class EvtGenTask(Basf2PathTask):
                                 particle['px'],
                                 particle['py'],
                                 particle['pz'],
-                                particle['pt']
+                                particle['pt'],
+                                particle['E']
                                 )
 
         main.add_module(ecl_output)

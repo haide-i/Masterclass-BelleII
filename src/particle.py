@@ -4,8 +4,8 @@ granularity = 100
 
 class Particle:
     def __init__(self,r, phi, B=1., charge=1.):
-        self.x = charge*r*np.cos(phi)
-        self.y = charge*r*np.sin(phi)
+        self.x = r*np.cos(phi)
+        self.y = r*np.sin(phi)
         self.radius = r
         self.phi = phi
         self.B = B

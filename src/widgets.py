@@ -25,10 +25,10 @@ class TrackingWidget:
         self.particles_df.loc[:,'charge'] = self.particles_df.loc[:,'pdg']/abs(self.particles_df.loc[:,'pdg'])
         self.particles_df.loc[:,'phi'] = self.particles_df.loc[:,'phi']*np.pi/180
         self.particles_df.reset_index(inplace = True, drop = True)
-        self.tracker = Tracker(layers = layers, n_segments = n_segments, ecl_segments=ecl_segments, k=k,dist=dist,noise = noise)
+        self.tracker = Tracker(layers = layers, n_segments = n_segments, ecl_segments=ecl_segments, k=k,dist=dist, noise = noise)
         self.n_particles = len(self.particles_df)
         self.B = B
-        self.particles_df.loc[:, "radius"] = self.particles_df.loc[:,"pt"]/(self.particles_df.loc[:,"charge"]*self.B)
+        self.particles_df.loc[:, "radius"] = self.particles_df.loc[:,"pt"]/self.B #(self.particles_df.loc[:,"charge"]*self.B)
         self.particles = []
         self.select_particles = []
         self.truth_particles = []
