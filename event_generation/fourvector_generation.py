@@ -1,23 +1,33 @@
 
-from scipy.optimize import *
-from scipy.optimize.nonlin import *
+import vector as vec
+from scipy.optimize import root, least_squares
+from scipy.optimize.nonlin import NoConvergence
 from pandas import IndexSlice as idx 
 import b2luigi as luigi
 import numpy as np
 import pandas as pd
 import os
 
-masses_dict = {"11": 0.51998e-3, 
-               "-11": 0.51998e-3, 
-               "111": 134.9768e-3, 
-               "211": 139.57039e-3, 
-               "-211": 139.57039e-3,
-              "22": 0,
-              "13": 206.7682830e-3,
-              "-13": 206.7682830e-3,
-              "321": 493.677e-3,
-              "-321": 493.677e-3,
-              "310": 497.611e-3}
+from events import events_dict, base_path
+
+masses_dict = {
+    "11": 0.51998e-3, 
+    "-11": 0.51998e-3, 
+    "111": 134.9768e-3, 
+    "211": 139.57039e-3, 
+    "-211": 139.57039e-3,
+    "22": 0,
+    "13": 206.7682830e-3,
+    "-13": 206.7682830e-3,
+    "321": 493.677e-3,
+    "-321": 493.677e-3,
+    "310": 497.611e-3,
+    "15": 1776.86e-3,
+    "-15": 1776.86e-3,
+    "2212": 938.272088e-3,
+    "-2212": 938.272088e-3,
+    "2112": 939.565420e-3
+}
 
 
 @pd.api.extensions.register_dataframe_accessor("v4")
@@ -110,20 +120,25 @@ class FourVecAccessor(object):
 
 
 class FourVecGenTask(luigi.Task):
-    base_path = luigi.Parameter()
-    pdgs = luigi.Parameter()
     name = luigi.Parameter()
     batch_system = "local"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.pdgs = events_dict[self.name]
     
+    def get_log_file_dir(self):
+        path = os.path.join(f'/ceph/jeppelt/girlsday', "fourvec_gen", self.name)
+        os.makedirs(path, exist_ok=True)
+        return path
+
     def generate_event(self):
         n = len(self.pdgs)
         masses = np.array([masses_dict[pdg] for pdg in self.pdgs])
         theta_in_barrel = False
         correct_masses = False
-        while not (theta_in_barrel and correct_masses):
+        ECL_energy = False
+        while not (theta_in_barrel and correct_masses and ECL_energy):
             #generate n-2 momenta
             part = (np.random.rand(n-2,3, )-0.5)*10
             #calculate n-2 Energies from masses
@@ -162,8 +177,10 @@ class FourVecGenTask(luigi.Task):
             event.loc[:,"InvM"] = event.v4.M
             event.loc[:,"pdg"] = self.pdgs
             # calculate checks if event generated correctly
-            theta_in_barrel = event.astype("float").v4.theta/(2*np.pi)*360
+            theta = event.astype("float").v4.theta/(2*np.pi)*360
+            theta_in_barrel = ((theta>33) & (theta<128)).sum()==n
             correct_masses = (abs(event.loc[:,"InvM"] - masses) < 1e-3*masses).sum() == n
+            ECL_energy = (event.loc[:,"E"] > 0.400).sum() == n
         
         return event
                     
@@ -172,31 +189,35 @@ class FourVecGenTask(luigi.Task):
         E0,E1,pz0,pz1 = 0,0,0,0
         solver_trys = 0
         solver_index = 0
-        solver_list = ["hybr", "lm", "broyden1", "broyden2", "anderson", "linearmixing", "diagbroyden", "excitingmixing", "krylov", "df-sane"]
-        while (abs(np.array(func((E0,E1,pz0, pz1)))) < 1e-6).sum() != 4:  
+        #solver_list = ["hybr", "lm", "broyden1", "broyden2"]#, "anderson", "krylov"]
+        while (abs(np.array(non_lin_eq((E0,E1,pz0, pz1)))) < 1e-6).sum() != 4:  
             # solver might not converge
             solver_trys += 1
             try:
-                E0, E1, pz0, pz1 = root(non_lin_eq, start_values, method = solver_list[solver_index], jac=False).x
+                #E0, E1, pz0, pz1 = least_squares(non_lin_eq, start_values, bounds = ((0,0,-10,-10),(10,10,10,10))).x
+                E0, E1, pz0, pz1 = root(non_lin_eq, start_values).x
             except NoConvergence as e:
                 pass #retrying with different values when non convergent
+            if solver_trys >=5:
+                break
             # if not coverging for 10 trys, try different solver
-            if (solver_trys>10):
-                solver_trys = 0
-                solver_index+=1
+            #if (solver_trys>10):
+            #    solver_trys = 0
+            #    solver_index+=1
                 # if all solvers are tried, return latest results
-                if solver_index>len(solver_list):
-                    break
-            start_values = ((np.random.rand(4)-0.5)*10).tolist()
+                #if solver_index>=len(solver_list):
+                #    break
+            start_values = (np.random.rand()*10, np.random.rand()*10, (np.random.rand()-0.5)*10, (np.random.rand()-0.5)*10)
+        return E0, E1, pz0, pz1
     
     @property
     def output_path(self):
-        return os.path.join(self.base_path, "fourvec_generation")
+        return os.path.join(base_path, "fourvec_generation")
     
     def output(self):
         output_key = f"{self.name}_fourvec_generation"
         return {output_key: luigi.LocalTarget(os.path.join(self.output_path, f"{self.name}.csv"))}
 
     def run(self):
-        event = self.generate_event().stack()
+        event = self.generate_event()
         event.to_csv(os.path.join(self.output_path, f"{self.name}.csv"))
