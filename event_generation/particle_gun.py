@@ -117,6 +117,7 @@ class getECLInfo(basf2.Module):
             print("generation rejected:")
             print("correct pdg", correctpdg)
             print("energy in barrel", energyinbarrel)
+            print("correct energy", correctenergy, tot_energy, self.E)
 
 
         self.index += 1
