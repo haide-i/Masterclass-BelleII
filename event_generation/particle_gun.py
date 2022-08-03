@@ -57,6 +57,7 @@ class getECLInfo(basf2.Module):
 
         energyinbarrel = False
         correctpdg = False
+        correctenergy = False
 
         print("in event: ", self.p, self.theta)           
 
@@ -91,8 +92,9 @@ class getECLInfo(basf2.Module):
                         correct_pdg = pdg
                         correct_mass = mass
                         tot_energy = energy
+                correctenergy = abs(tot_energy - self.E) < 1e-2
         
-        if correctpdg and energyinbarrel and tot_energy == self.E:               
+        if correctpdg and energyinbarrel and correctenergy:               
             all_energy = [[e for e in cells.values()]]
             print(np.shape(np.array(all_energy)))
                         
@@ -113,8 +115,9 @@ class getECLInfo(basf2.Module):
             self.tot_data = pd.concat([self.tot_data, data])
         else:
             print("generation rejected:")
-            print("correct pdg", correct_pdg)
+            print("correct pdg", correctpdg)
             print("energy in barrel", energyinbarrel)
+
 
         self.index += 1
 
