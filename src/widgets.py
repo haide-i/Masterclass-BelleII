@@ -59,7 +59,7 @@ class TrackingWidget:
         [p.remove() for p in self.ax.patches]
         self.tracker.segments["selected"] = "not"
         for i, wphi in enumerate(self.phi):
-            self.select_particles[i].phi = -wphi.value
+            self.select_particles[i].phi = wphi.value
         for i, wcharge in enumerate(self.charge):
             self.select_particles[i].charge = -1 if wcharge.value == "negative Ladung" else 1
         for i, wr in enumerate(self.r):
