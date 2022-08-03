@@ -99,11 +99,11 @@ class Tracker:
         d = particle.radius*particle.charge
         a=(self.segments.radius**2)/(2*d)
         h=np.sqrt(abs(self.segments.radius**2-a**2))
-        x2=a*(particle.x*particle.charge)/d   
-        y2=a*(particle.y*particle.charge)/d   
+        x2=a*(particle.x)/d   
+        y2=a*(particle.y)/d   
 
-        x4=x2-h*(particle.y*particle.charge)/d
-        y4=y2+h*(particle.x*particle.charge)/d
+        x4=x2-h*(particle.y)/d
+        y4=y2+h*(particle.x)/d
         
         theta = np.arctan2(y4,x4)
 
