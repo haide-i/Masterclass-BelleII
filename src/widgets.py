@@ -314,8 +314,11 @@ true_particle_data = [[0.511, 1],
                      [939.6, 0],
                       [135, 0],
                      [139.6, +1],
-                      [139.6, -1]]
-true_particle_names = ["e+", "e-", "mu+", "mu-", "tau+", "tau-", "Proton", "Antiproton", "Neutron", "pi0", "pi+", "pi-"]
+                      [139.6, -1],
+                      [497.6, 0],
+                     [493.7, +1],
+                      [493.7, -1]]
+true_particle_names = ["e+", "e-", "mu+", "mu-", "tau+", "tau-", "Proton", "Antiproton", "Neutron", "pi0", "pi+", "pi-", "K0", "K+", "K-"]
 truth_particles = pd.DataFrame(columns = ["Masse", "Ladung"], data=true_particle_data, index=true_particle_names)
 truth_particles.loc[:, "Masse"] = truth_particles["Masse"]*10**(-3)
 
