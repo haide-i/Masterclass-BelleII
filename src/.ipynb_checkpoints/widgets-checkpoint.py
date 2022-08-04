@@ -2,7 +2,8 @@ from faulthandler import disable
 import ipywidgets as widgets
 from matplotlib import pyplot as plt
 import numpy as np
-from src.particle import Particle, ToyParticle
+from torch import layout
+from src.particle import Particle
 from src.ecal import ECal
 from src.tracker import Tracker
 import pandas as pd
@@ -15,17 +16,26 @@ from matplotlib.widgets import LassoSelector
 from matplotlib.path import Path
 from matplotlib.colors import to_rgba_array
 
+def make_box_layout():
+     return widgets.Layout(
+        border='solid 1px black',
+        margin='0px 10px 10px 0px',
+        padding='5px 5px 5px 5px',
+        height = "1000px",
+        width = "1000px"
+     )
+
 class TrackingWidget:
-    def __init__(self, data_path, B = 0.4, layers = 8, n_segments = 5, ecl_segments = 30, k = 4, dist = 0.1, noise = 0.05, show_truthbutton = False):
+    def __init__(self, data_path, B = 0.2, layers = 15, n_segments = 5, ecl_segments = 30, k = 3, dist = 0.1, noise = 0.05, linewidth = 5, show_truthbutton = False):
         if layers > 20:
             print("Es sind Maximal 20 Ebenen möglich!")
             layers = 20
         self.show_truthbutton = show_truthbutton
         self.particles_df = pd.read_hdf(data_path)
         self.particles_df.loc[:,'charge'] = self.particles_df.loc[:,'pdg']/abs(self.particles_df.loc[:,'pdg'])
-        self.particles_df.loc[:,'phi'] = self.particles_df.loc[:,'phi']*np.pi/180
+        #self.particles_df.loc[:,'phi'] = self.particles_df.loc[:,'phi']*np.pi/180
         self.particles_df.reset_index(inplace = True, drop = True)
-        self.tracker = Tracker(layers = layers, n_segments = n_segments, ecl_segments=ecl_segments, k=k,dist=dist, noise = noise)
+        self.tracker = Tracker(layers = layers, n_segments = n_segments, ecl_segments=ecl_segments, k=k,dist=dist, noise = noise, linewidth = linewidth)
         self.n_particles = len(self.particles_df)
         self.B = B
         self.particles_df.loc[:, "radius"] = self.particles_df.loc[:,"pt"]/self.B #(self.particles_df.loc[:,"charge"]*self.B)
@@ -59,7 +69,7 @@ class TrackingWidget:
         [p.remove() for p in self.ax.patches]
         self.tracker.segments["selected"] = "not"
         for i, wphi in enumerate(self.phi):
-            self.select_particles[i].phi = -wphi.value
+            self.select_particles[i].phi = wphi.value
         for i, wcharge in enumerate(self.charge):
             self.select_particles[i].charge = -1 if wcharge.value == "negative Ladung" else 1
         for i, wr in enumerate(self.r):
@@ -87,7 +97,10 @@ class TrackingWidget:
         self.ax.legend()
             
     def show(self):
-        self.fig, self.ax = plt.subplots(figsize=(10,10))
+        self.out = widgets.Output()
+        with self.out:
+            self.fig, self.ax = plt.subplots(figsize=(7,7),constrained_layout=True)
+        self.fig.canvas.toolbar_position = 'left'
         limit = self.tracker.layers +3
         self.ax.set_ylim([-limit, limit])
         self.ax.set_xlim([-limit, limit])
@@ -112,13 +125,31 @@ class TrackingWidget:
             else:
                 p_box = widgets.VBox([self.r[i],self.phi[i], self.charge[i]])
             self.box_list.append(p_box)
-        self.tabs = widgets.Tab()
+        self.tabs = widgets.Accordion()
         self.tabs.children = self.box_list
         for i in range(self.n_particles):
             self.tabs.set_title(i,f"particle {i}")
         self.tabs.observe(self.change_particle, names = "selected_index")
-        self.out = widgets.Output()
-        display(self.tabs, self.out)  
+        self.tabs_box = widgets.HBox([self.tabs])
+        self.tabs_box.layout =widgets.Layout(
+                                border='solid 1px black',
+                                margin='0px 10px 10px 0px',
+                                padding='5px 5px 5px 5px',
+                                height = "750px ",
+                                width = "500px"
+                            )
+        self.plot_box = widgets.HBox([self.out])
+        self.plot_box.layout = widgets.Layout(
+                                border='solid 1px black',
+                                margin='0px 10px 10px 0px',
+                                padding='5px 5px 5px 5px',
+                                height = "750px ",
+                                width = "750px"
+                            )
+        self.final_box = widgets.HBox([  self.tabs_box,self.plot_box])
+        with self.out:
+            plt.show()
+        display(self.final_box)  
         self.update(1)  
 
     @property
@@ -174,7 +205,7 @@ class TestDetektor:
         self.charge_widget.observe(self.update, names = "value")
         self.out = widgets.Output()
         p_box = widgets.VBox([self.pt_widget, self.b_widget,self.charge_widget])
-        display(p_box, self.out)  
+        plt.show()
         self.update(1)    
         self.update(1)   
 
@@ -195,7 +226,11 @@ class ECLWidget:
         self.alphas = np.clip(content,0.25,1)
         #self.subplot_kw = dict(xlim=(-5,725), ylim=(-5,235), autoscale_on=False)
         
-        fig, ax = plt.subplots(figsize=(16,9))#, subplot_kw=self.subplot_kw, dpi=400)
+        self.out = widgets.Output()
+        with self.out:
+            fig, ax = plt.subplots(figsize=(15,6),constrained_layout=True)#, subplot_kw=self.subplot_kw, dpi=400)
+        ax.set_ylim(-10,46*5+10)
+        ax.set_xlim(-10,144*5+10)
         ax.add_collection(self.ecal.collection)
         self.crystall_points = ax.scatter(self.ecal.crystals_df["x"], self.ecal.crystals_df["y"], s=0)
         self.xys = self.crystall_points.get_offsets()
@@ -221,21 +256,27 @@ class ECLWidget:
         self.canvas.draw_idle()
         particle_mask = self.ecal.select_particles.loc[self.particle_index, :].to_numpy()>0
         energy = self.ecal.crystals_df.loc[particle_mask, "content"].sum()
-        self.energy_label.value = f"Energy of selected Cluster: {str(round(energy,4))} GeV"     
+        self.energy_labels[self.particle_index].value = str(round(energy,4))
         
     def change_particle(self,change):
-        self.particle_index = self.particle.value
+        self.particle_index = self.particle.selected_index
         self.onselect([(0,0)])
         
     def show(self):
-        self.particle = widgets.Dropdown(options = [i for i in range(self.ecal.n_particles)], value = 0, description = "Particle")
-        self.particle.observe(self.change_particle, names = "value")
-        self.energy_label = widgets.Label("Energy of selected Cluster: 0 GeV")
-        self.box = widgets.HBox([self.particle, self.energy_label])
-        self.out = widgets.Output()
-        display(self.box, self.out)
+        self.particle = widgets.Accordion()
+        self.particle.observe(self.change_particle, names = "selected_index")
+        self.energy_labels = []
+        self.box_list = []
+        for i in range(self.ecal.n_particles):
+            self.particle.set_title(i, f"Teilchen {i}")
+            self.energy_labels.append(widgets.Text(description = "Gesamte Energie der ausgewählten Kristalle in GeV:", value = "0"))
+            self.box_list.append(widgets.HBox([self.energy_labels[i]]))
+        self.particle.children = self.box_list
+        self.final_box = widgets.VBox(children=[self.particle, self.out])
+        with self.out:
+            plt.show()
+        display(self.final_box)
         self.onselect([(0,0)])
-        plt.show()
     
     @property
     def get_particles_energy(self):
@@ -256,6 +297,11 @@ class ECLWidget:
             ydiff = abs(self.ecal.center[i]%144 - selected_hits%144)
             radius.append(max(xdiff.max(), ydiff.max()))
         return pd.DataFrame(radius, columns= ["Radius"])
+
+
+
+
+
 
 true_particle_data = [[0.511, 1],
                       [0.511, -1],
@@ -284,7 +330,7 @@ class MatchingWidget:
     def update(self, change = 0):
         sele_index = self.tabs.selected_index
         self.res_df.loc[sele_index, "Energie"] = self.energies.loc[sele_index, "Energie"]
-        self.res_df.loc[sele_index, "Radius"] = self.radius.loc[sele_index, "Radius"]
+        self.res_df.loc[sele_index, "Radius"] = np.nan_to_num(self.radius.loc[sele_index, "Radius"])
         self.res_df.loc[sele_index, "Ladung"] = self.momenta.loc[sele_index, "Ladung"]
         self.res_df.loc[sele_index, "Momentum"] = np.sqrt((self.momenta.loc[sele_index, ["px", "py", "pz"]]**2).sum().astype("float"))
         # if self.res_df.loc[:, "Energie"] > self.res_df.loc[:, "Momentum"]:
