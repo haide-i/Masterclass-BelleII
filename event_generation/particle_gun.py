@@ -55,49 +55,71 @@ class getECLInfo(basf2.Module):
         tot_energy = 0
 
         energyinbarrel = False
+        ignore_event = False
         correctpdg = False
-        correctenergy = False
-        cells = dict.fromkeys(self.barrel, 0)
-        print(len(self.eclcaldigits))
-        # check if energy is deposited in barrel
-        for caldigit in self.eclcaldigits:
-            rec_energy = caldigit.getEnergy()
 
-            ids = caldigit.getCellId()
-            if ids in cells:
-                print(ids)
-                cells[ids] = rec_energy
-                energyinbarrel = True
+        print("in event: ", self.p, self.theta)
 
-        tot_energy = sum(cells.values() )
-        correctenergy = abs(tot_energy - self.E) < 1e-2        
-        
-        if energyinbarrel:# and correctenergy:               
-            all_energy = [[e for e in cells.values()]]
+        if len(self.mcparticles) == 1:
+            ignore_event = True
+
+        if not ignore_event:
             
-                        
-            data = pd.DataFrame(columns=self.col_names, data=all_energy)
-            
-            data['event'] = self.index
-            data['pdg'] = self.pdg #correct_pdg
-            data['mass'] = correct_mass
-            data['energy'] = tot_energy
-            data['theta'] = self.theta.item()
-            data['phi'] = self.phi.item()
-            data['p'] = self.p.item()
-            data['px'] = self.px.item()
-            data['py'] = self.py.item()
-            data['pz'] = self.pz.item()
-            data['pt'] = self.pt.item()
 
-            self.tot_data = pd.concat([self.tot_data, data])
-        else:
-            print("generation rejected:")
-            print("correct pdg", correctpdg)
-            print("energy in barrel", energyinbarrel)
-            print("correct energy", correctenergy, tot_energy, self.E)
+            cells = dict.fromkeys(self.barrel, 0)
 
+            for caldigit in self.eclcaldigits:
+                rec_energy = caldigit.getEnergy()
 
+                ids = caldigit.getCellId()
+
+                if ids in cells:
+
+                    cells[ids] = rec_energy
+                    energyinbarrel = True
+
+            if energyinbarrel:
+
+                for mc_idx, mc_particle in enumerate(self.mcparticles):
+                    mcrelations = mc_particle.getRelationsWith('ECLCalDigits')
+
+                    pdg = mc_particle.getPDG()
+                    print(pdg)
+                    
+                    if int(pdg) == int(self.pdg):
+                        correctpdg = True
+                        mass = mc_particle.getMass()
+                        energy = mc_particle.getEnergy()
+
+                        for mc_id in range(mcrelations.size()):
+                            # mc_energy = mcrelations.weight(mc_id)
+                            id = mcrelations.object(mc_id).getCellId()
+
+                            if id in cells:
+                                correct_pdg = pdg
+                                correct_mass = mass
+                                tot_energy = energy
+
+                if correctpdg:
+                
+                    all_energy = [[e for e in cells.values()]]
+                    print(np.shape(np.array(all_energy)))
+                                
+                    data = pd.DataFrame(columns=self.col_names, data=all_energy)
+                    
+                    data['event'] = self.index
+                    data['pdg'] = correct_pdg
+                    data['mass'] = correct_mass
+                    data['energy'] = tot_energy
+                    data['theta'] = self.theta.item()
+                    data['phi'] = self.phi.item()
+                    data['p'] = self.p.item()
+                    data['px'] = self.px.item()
+                    data['py'] = self.py.item()
+                    data['pz'] = self.pz.item()
+                    data['pt'] = self.pt.item()
+
+                    self.tot_data = pd.concat([self.tot_data, data])
         self.index += 1
 
     def terminate(self):
