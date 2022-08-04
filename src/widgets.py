@@ -269,7 +269,7 @@ class ECLWidget:
         self.box_list = []
         for i in range(self.ecal.n_particles):
             self.particle.set_title(i, f"Teilchen {i}")
-            self.energy_labels.append(widgets.Text(description = "Gesamte Energie der ausgewählten Kristalle in GeV:", value = "0"))
+            self.energy_labels.append(widgets.Text(description = "Gesamte Energie der ausgewählten Kristalle in GeV:", value = "0", disabled=True))
             self.box_list.append(widgets.HBox([self.energy_labels[i]]))
         self.particle.children = self.box_list
         self.final_box = widgets.VBox(children=[self.particle, self.out])
@@ -325,7 +325,13 @@ class MatchingWidget:
         self.radius = ew.get_particles_radius
         self.momenta = tw.get_fitted_particles  
         columns = ["Ladung", "Energie", "Momentum", "Masse", "Radius"]
+        self.true_df = tw.particles_df
         self.res_df = pd.DataFrame(data = np.zeros((len(self.energies), len(columns))), columns = columns)
+        #self.res_df.loc[:,"pt"] = np.sqrt(( self.momenta.loc[:,["px", "py"]]**2).sum())
+        self.diff_mask = ((self.true_df["pt"]-self.momenta["pt"])<1e-2).to_numpy()
+        self.momenta.loc[self.diff_mask, ["px", "py", "pz"]] =  self.true_df.loc[self.diff_mask, ["px", "py", "pz"]]
+        self.energies.loc[self.diff_mask, "Energie"] = self.true_df.loc[self.diff_mask, "energy"]   
+
             
     def update(self, change = 0):
         sele_index = self.tabs.selected_index
@@ -344,10 +350,16 @@ class MatchingWidget:
             self.moment_txt[i].value = str(self.res_df.loc[sele_index, "Momentum"])
             self.invmas_txt[i].value = str(self.res_df.loc[sele_index, "Masse"])
             self.radius_txt[i].value = str(self.res_df.loc[sele_index, "Radius"])
+            self.px_txt[i].value = str(self.momenta.loc[sele_index, "px"])
+            self.py_txt[i].value = str(self.momenta.loc[sele_index, "py"])
+            self.pz_txt[i].value = str(self.momenta.loc[sele_index, "pz"])
 
     def show(self):
         boxes = []
         self.energy_txt = []
+        self.px_txt = []
+        self.py_txt = []
+        self.pz_txt = []
         self.charge_txt = []
         self.moment_txt = []
         self.invmas_txt = []
@@ -356,6 +368,9 @@ class MatchingWidget:
         self.charge_comp = []
         self.part_ids = []
         for i in range(len(self.res_df)):
+            self.px_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "$p_x$", disabled = True))
+            self.py_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "$p_y$", disabled = True))
+            self.pz_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "$p_z$", disabled = True))
             self.energy_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Energie", disabled = True))
             self.charge_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Ladung", disabled = True))
             self.moment_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Momentum", disabled = True))
@@ -366,11 +381,13 @@ class MatchingWidget:
             self.part_ids[i].observe(self.update, "value")
             self.out = widgets.Output()
             self.res_box = widgets.VBox(children=[self.energy_txt[i], self.charge_txt[i], self.moment_txt[i], self.invmas_txt[i], self.radius_txt[i]])
+            self.vec_box = widgets.VBox(children=[self.energy_txt[i], self.px_txt[i], self.py_txt[i], self.pz_txt[i]])
             self.mass_comp.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Massendifferenz", disabled = True))
             self.charge_comp.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Ladungsdifferenz", disabled = True))
             self.comb_box = widgets.VBox(children=[self.mass_comp[i], self.charge_comp[i]])
             hbox = widgets.HBox(children=[self.res_box, self.part_ids[i], self.comb_box])
-            box = widgets.VBox(children=[hbox, self.partic_list])
+            hbox2 = widgets.HBox(children=[self.partic_list,self.vec_box])
+            box = widgets.VBox(children=[hbox, hbox2])
             boxes.append(box)
         self.tabs = widgets.Tab(children=boxes)
         self.tabs.observe(self.update, "selected_index")
@@ -379,3 +396,41 @@ class MatchingWidget:
             # self.mass_comp[i].value = str(
         self.update()
         display(self.tabs, self.out)
+    
+class MissingWidget():
+
+    def calc_missing_part(self, dummy):
+        fourvecs = np.zeros((4,4))
+        for i in range(4):
+            for j in range(4):
+                fourvecs[i,j] = self.boxes[i].children[j+1].value
+        missing_part = np.array([15.580,0,0,0])-fourvecs.sum(0)
+        print(missing_part)
+        for j in range(4):
+            self.boxes[4].children[j+1].value = missing_part[j]
+        self.boxes[4].children[5].value = np.sqrt(((missing_part*np.array([1,-1,-1,-1]))**2).sum())
+
+
+    def show(self):
+        self.boxes = []
+        for i in range(4):
+            w_label1 = widgets.Label(value=f"Teilchen {i}")
+            w_energy1 = widgets.FloatText(description="Energie", placeholder = "kein Eintrag", value = 0., layout = widgets.Layout(width="200px"))
+            w_px1 = widgets.FloatText(description="$p_x$", placeholder = "kein Eintrag", value = 0., layout = widgets.Layout(width="200px"))
+            w_py1 = widgets.FloatText(description="$p_y$", placeholder = "kein Eintrag", value = 0., layout = widgets.Layout(width="200px"))
+            w_pz1 = widgets.FloatText(description="$p_z$", placeholder = "kein Eintrag", value = 0., layout = widgets.Layout(width="200px"))
+            t1_box = widgets.VBox(children=[w_label1, w_energy1, w_px1, w_py1, w_pz1])
+            self.boxes.append(t1_box)
+        w_label1 = widgets.Label(value=f"fehlendes Teilchen")
+        w_energy1 = widgets.FloatText(description="Energie", placeholder = "kein Eintrag", disabled = True, layout = widgets.Layout(width="200px"))
+        w_px1 = widgets.FloatText(description="$p_x$", placeholder = "kein Eintrag", disabled = True, layout = widgets.Layout(width="200px"))
+        w_py1 = widgets.FloatText(description="$p_y$", placeholder = "kein Eintrag", disabled = True, layout = widgets.Layout(width="200px"))
+        w_pz1 = widgets.FloatText(description="$p_z$", placeholder = "kein Eintrag", disabled = True, layout = widgets.Layout(width="200px"))
+        w_mass = widgets.FloatText(description="Masse",  placeholder = "kein Eintrag", disabled = True)
+        t1_box = widgets.VBox(children=[w_label1, w_energy1, w_px1, w_py1, w_pz1, w_mass])
+        self.boxes.append(t1_box)
+        button = widgets.Button(description="Berechne fehlendes Teilchen")
+        button.on_click(self.calc_missing_part)
+        self.boxes.append(button)
+        self.final_box = widgets.HBox(children=self.boxes)
+        display(self.final_box)
