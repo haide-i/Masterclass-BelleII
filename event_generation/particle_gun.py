@@ -27,7 +27,6 @@ class getECLInfo(basf2.Module):
         self.obj_eclgeometrypar = Belle2.ECL.ECLGeometryPar.Instance()
         self.barrel = np.arange(1153, 7777, dtype=int)
         self.col_names = [f'{i}' for i in self.barrel]
-        print(pdg, theta, phi, p, px, py, pz, pt)
         self.pdg = pdg
         self.theta = theta
         self.phi = phi
@@ -58,45 +57,24 @@ class getECLInfo(basf2.Module):
         energyinbarrel = False
         correctpdg = False
         correctenergy = False
-
-        print("in event: ", self.p, self.theta)           
-
         cells = dict.fromkeys(self.barrel, 0)
-
+        print(len(self.eclcaldigits))
         # check if energy is deposited in barrel
         for caldigit in self.eclcaldigits:
             rec_energy = caldigit.getEnergy()
 
             ids = caldigit.getCellId()
             if ids in cells:
-
+                print(ids)
                 cells[ids] = rec_energy
                 energyinbarrel = True
 
-        # check if particle in ecl is still starting particle (decays and stuff....)           
-        for mc_idx, mc_particle in enumerate(self.mcparticles):
-            mcrelations = mc_particle.getRelationsWith('ECLCalDigits')
-
-            pdg = mc_particle.getPDG()
-            
-            if int(pdg) == int(self.pdg):
-                correctpdg = True
-                mass = mc_particle.getMass()
-                energy = mc_particle.getEnergy()
-
-                for mc_id in range(mcrelations.size()):
-                    # mc_energy = mcrelations.weight(mc_id)
-                    id = mcrelations.object(mc_id).getCellId()
-
-                    if id in cells:
-                        correct_pdg = pdg
-                        correct_mass = mass
-                        tot_energy = energy
-                correctenergy = abs(tot_energy - self.E) < 1e-2
+        tot_energy = sum(cells.values() )
+        correctenergy = abs(tot_energy - self.E) < 1e-2        
         
-        if correctpdg and energyinbarrel and correctenergy:               
+        if energyinbarrel:# and correctenergy:               
             all_energy = [[e for e in cells.values()]]
-            print(np.shape(np.array(all_energy)))
+            
                         
             data = pd.DataFrame(columns=self.col_names, data=all_energy)
             
@@ -163,9 +141,8 @@ class EvtGenTask(Basf2PathTask):
     def create_path(self):
         main = basf2.create_path()
         df = self.read_input()
-        print(df)
         particle = df.iloc[self.index]
-
+        print(particle)
         particlegun = basf2.register_module('ParticleGun')
         particlegun.param('pdgCodes', [int(particle['pdg'])])
 
@@ -173,15 +150,15 @@ class EvtGenTask(Basf2PathTask):
         particlegun.param('momentumParams', [particle['p']])
 
         particlegun.param('thetaGeneration', 'fixed')
-        particlegun.param('thetaParams', [particle['theta']])
+        particlegun.param('thetaParams', [particle['theta']*180/np.pi])
 
         particlegun.param('phiGeneration', 'fixed')
-        particlegun.param('phiParams', [particle['phi']])
+        particlegun.param('phiParams', [particle['phi']*180/np.pi])
 
         main.add_module(particlegun)
 
         main.add_module('EventInfoSetter',
-                        evtNumList=100)
+                        evtNumList=10)
 
         main.add_module('Gearbox')
         main.add_module('Geometry', useDB=True)
@@ -190,14 +167,6 @@ class EvtGenTask(Basf2PathTask):
 
         add_reconstruction(path=main)
     
-        print(particle['theta'],
-            particle['phi'],
-            particle['p'],
-            particle['px'],
-            particle['py'],
-            particle['pz'],
-            particle['pt'])
-
         ecl_output = getECLInfo(self.output_file(),
                                 particle['pdg'],
                                 particle['theta'],
@@ -224,10 +193,10 @@ class EvtGenTask(Basf2PathTask):
         path = self.create_path()
 
         path.add_module('Progress')
-        basf2.print_path(path)
+        #basf2.print_path(path)
         basf2.process(path)
 
-        print(basf2.statistics)
+        #print(basf2.statistics)
     
     @property
     def output_path(self):
