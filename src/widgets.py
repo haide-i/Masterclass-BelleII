@@ -330,7 +330,7 @@ class MatchingWidget:
     def update(self, change = 0):
         sele_index = self.tabs.selected_index
         self.res_df.loc[sele_index, "Energie"] = self.energies.loc[sele_index, "Energie"]
-        self.res_df.loc[sele_index, "Radius"] = self.radius.loc[sele_index, "Radius"]
+        self.res_df.loc[sele_index, "Radius"] = np.nan_to_num(self.radius.loc[sele_index, "Radius"])
         self.res_df.loc[sele_index, "Ladung"] = self.momenta.loc[sele_index, "Ladung"]
         self.res_df.loc[sele_index, "Momentum"] = np.sqrt((self.momenta.loc[sele_index, ["px", "py", "pz"]]**2).sum().astype("float"))
         # if self.res_df.loc[:, "Energie"] > self.res_df.loc[:, "Momentum"]:
