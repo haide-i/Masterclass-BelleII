@@ -35,8 +35,8 @@ class Tracker:
             len_segment = 2*np.pi/(n_segments+k*l)
             for i in range(n_segments+k*l):
                 radius = l
-                begin = len_segment*i+dist/(l+1)
-                end = len_segment*(i+1)-dist/(l+1)
+                begin = len_segment*i+dist/(l+1)+0.1
+                end = len_segment*(i+1)-dist/(l+1)+0.1
                 content = "noise" if np.random.rand()<self.noise else "empty"
                 selected = "not"
                 lines = get_track_line(radius, begin, end)
