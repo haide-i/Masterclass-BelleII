@@ -221,7 +221,7 @@ class ECLWidget:
         self.canvas.draw_idle()
         particle_mask = self.ecal.select_particles.loc[self.particle_index, :].to_numpy()>0
         energy = self.ecal.crystals_df.loc[particle_mask, "content"].sum()
-        self.energy_label.value = f"Energy of selected Cluster: {str(round(energy,4))} GeV"
+        self.energy_label.value = f"Energy of selected Cluster: {str(round(energy,4))} GeV"     
         
     def change_particle(self,change):
         self.particle_index = self.particle.value
@@ -244,6 +244,18 @@ class ECLWidget:
             particle_mask = self.ecal.select_particles.loc[i, :].to_numpy()>0
             energys.append(self.ecal.crystals_df.loc[particle_mask, "content"].sum())
         return pd.DataFrame(energys, columns = ["Energie"])
+    
+    @property
+    def get_particles_radius(self):
+        radius = []
+        for i in range(self.ecal.n_particles):
+            particle_mask = self.ecal.select_particles.loc[i, :].to_numpy()>0
+            selected_crystals = self.ecal.crystals_df.loc[particle_mask]
+            selected_hits = selected_crystals.query("content>0").index
+            xdiff = abs(int(self.ecal.center[i]/144.)%46 - (selected_hits/144).astype('int')%46)
+            ydiff = abs(self.ecal.center[i]%144 - selected_hits%144)
+            radius.append(max(xdiff.max(), ydiff.max()))
+        return pd.DataFrame(radius, columns= ["Radius"])
 
 true_particle_data = [[0.511, 1],
                       [0.511, -1],
@@ -264,13 +276,15 @@ truth_particles.loc[:, "Masse"] = truth_particles["Masse"]*10**(-3)
 class MatchingWidget:
     def __init__(self, ew, tw) -> None:
         self.energies = ew.get_particles_energy
+        self.radius = ew.get_particles_radius
         self.momenta = tw.get_fitted_particles  
-        columns = ["Ladung", "Energie", "Momentum", "Masse"]
+        columns = ["Ladung", "Energie", "Momentum", "Masse", "Radius"]
         self.res_df = pd.DataFrame(data = np.zeros((len(self.energies), len(columns))), columns = columns)
             
     def update(self, change = 0):
         sele_index = self.tabs.selected_index
         self.res_df.loc[sele_index, "Energie"] = self.energies.loc[sele_index, "Energie"]
+        self.res_df.loc[sele_index, "Radius"] = self.radius.loc[sele_index, "Radius"]
         self.res_df.loc[sele_index, "Ladung"] = self.momenta.loc[sele_index, "Ladung"]
         self.res_df.loc[sele_index, "Momentum"] = np.sqrt((self.momenta.loc[sele_index, ["px", "py", "pz"]]**2).sum().astype("float"))
         # if self.res_df.loc[:, "Energie"] > self.res_df.loc[:, "Momentum"]:
@@ -283,6 +297,7 @@ class MatchingWidget:
             self.charge_txt[i].value = str(self.res_df.loc[sele_index, "Ladung"])
             self.moment_txt[i].value = str(self.res_df.loc[sele_index, "Momentum"])
             self.invmas_txt[i].value = str(self.res_df.loc[sele_index, "Masse"])
+            self.radius_txt[i].value = str(self.res_df.loc[sele_index, "Radius"])
 
     def show(self):
         boxes = []
@@ -290,6 +305,7 @@ class MatchingWidget:
         self.charge_txt = []
         self.moment_txt = []
         self.invmas_txt = []
+        self.radius_txt = []
         self.mass_comp = []
         self.charge_comp = []
         self.part_ids = []
@@ -298,11 +314,12 @@ class MatchingWidget:
             self.charge_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Ladung", disabled = True))
             self.moment_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Momentum", disabled = True))
             self.invmas_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Masse", disabled = True))
+            self.radius_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Radius", disabled = True))
             self.partic_list = widgets.HTML(value= truth_particles.to_html(), description = "bekannte Teilchen")
             self.part_ids.append(widgets.Select(options = truth_particles.index, value = "e+", description = "Teilchenname"))
             self.part_ids[i].observe(self.update, "value")
             self.out = widgets.Output()
-            self.res_box = widgets.VBox(children=[self.energy_txt[i], self.charge_txt[i], self.moment_txt[i], self.invmas_txt[i]])
+            self.res_box = widgets.VBox(children=[self.energy_txt[i], self.charge_txt[i], self.moment_txt[i], self.invmas_txt[i], self.radius_txt[i]])
             self.mass_comp.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Massendifferenz", disabled = True))
             self.charge_comp.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Ladungsdifferenz", disabled = True))
             self.comb_box = widgets.VBox(children=[self.mass_comp[i], self.charge_comp[i]])
