@@ -205,6 +205,7 @@ class TestDetektor:
         self.out = widgets.Output()
         p_box = widgets.VBox([self.pt_widget, self.b_widget,self.charge_widget])
         plt.show()
+        display(self.out, p_box)
         self.update(1)    
         self.update(1)   
 
