@@ -2,7 +2,6 @@ from faulthandler import disable
 import ipywidgets as widgets
 from matplotlib import pyplot as plt
 import numpy as np
-from torch import layout
 from src.particle import Particle
 from src.ecal import ECal
 from src.tracker import Tracker
