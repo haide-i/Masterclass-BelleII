@@ -25,10 +25,11 @@ def make_box_layout():
      )
 
 class TrackingWidget:
-    def __init__(self, data_path, B = 0.2, layers = 15, n_segments = 5, ecl_segments = 30, k = 3, dist = 0.1, noise = 0.05, linewidth = 5, show_truthbutton = False):
+    def __init__(self, data_path, B = 0.2, layers = 15, n_segments = 5, ecl_segments = 30, k = 3, dist = 0.1, noise = 0.05, linewidth = 5, show_truthbutton = False, continuous_update=True):
         if layers > 20:
             print("Es sind Maximal 20 Ebenen möglich!")
             layers = 20
+        self.continuous_update=continuous_update
         self.show_truthbutton = show_truthbutton
         self.particles_df = pd.read_hdf(data_path)
         self.particles_df.loc[:,'charge'] = self.particles_df.loc[:,'pdg']/abs(self.particles_df.loc[:,'pdg'])
@@ -113,9 +114,9 @@ class TrackingWidget:
             self.truthbutton = widgets.ToggleButton(value = False, description = "Zeige wahres Teilchen")
             self.truthbutton.observe(self.update, names = "value")
         for i in range(self.n_particles):
-            self.r.append(widgets.FloatSlider(0 ,min = 0, max = 5, step = 0.01, description = r"$p_T$"))
+            self.r.append(widgets.FloatSlider(0 ,min = 0, max = 5, step = 0.01, description = r"$p_T$",continuous_update=self.continuous_update))
             self.r[i].observe(self.update, names = "value")
-            self.phi.append(widgets.FloatSlider(self.particles_df.loc[i,"phi"] ,min = -np.pi, max = np.pi, step = 0.01, description = f"$\phi$"))
+            self.phi.append(widgets.FloatSlider(self.particles_df.loc[i,"phi"] ,min = -np.pi, max = np.pi, step = 0.01, description = f"$\phi$",continuous_update=self.continuous_update))
             self.phi[i].observe(self.update, names = "value")
             self.charge.append(widgets.RadioButtons(options=['positive Ladung', 'negative Ladung'],  description=''))
             self.charge[i].observe(self.update, names = "value")
