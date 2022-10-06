@@ -18,9 +18,17 @@ class Particle:
     def draw(self, ax):
         self.x = self.radius*np.sin((self.phi+self.charge*np.pi/2))
         self.y = self.radius*np.cos((self.phi+self.charge*np.pi/2))
-        theta = np.linspace(-np.pi/2+self.phi,+np.pi/2+self.phi)
+        theta = np.linspace(-np.pi/2+self.phi,+np.pi/2+self.phi,granularity)
         x = abs(self.radius)*np.sin(theta)+ self.x
         y = abs(self.radius)*np.cos(theta)+ self.y
         c = "blue" #if self.radius<0 else "red"
         ax.plot(x,y,color = c, label=f'$p_T$ = {round(self.momentum(),5)} GeV, Q = {self.charge}')
+
+    def trace_array(self):
+        self.x = self.radius*np.sin((self.phi+self.charge*np.pi/2))
+        self.y = self.radius*np.cos((self.phi+self.charge*np.pi/2))
+        theta = np.linspace(-np.pi/2+self.phi,+np.pi/2+self.phi,granularity)
+        x = abs(self.radius)*np.sin(theta)+ self.x
+        y = abs(self.radius)*np.cos(theta)+ self.y
+        return np.array([x,y])    
         

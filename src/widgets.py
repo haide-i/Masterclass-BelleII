@@ -9,8 +9,8 @@ import pandas as pd
 
 from copy import deepcopy
 
-from  matplotlib.patches import FancyArrowPatch
-
+from matplotlib.patches import FancyArrowPatch
+from matplotlib.collections import LineCollection
 from matplotlib.widgets import LassoSelector
 from matplotlib.path import Path
 from matplotlib.colors import to_rgba_array
@@ -23,6 +23,40 @@ def make_box_layout():
         height = "1000px",
         width = "1000px"
      )
+
+class BlitManager:
+    def __init__(self, canvas, artist):
+        """copy from matplotlib website (blitting)"""
+        self.canvas = canvas
+        self._bg = None
+        self.artist = artist
+
+        # grab the background on every draw
+        self.cid = canvas.mpl_connect("draw_event", self.on_draw)
+
+    def on_draw(self, event):
+        cv = self.canvas
+        if event is not None:
+            if event.canvas != cv:
+                raise RuntimeError
+        self._bg = cv.copy_from_bbox(cv.figure.bbox)
+        self._draw_animated()
+
+
+    def _draw_animated(self):
+        fig = self.canvas.figure
+        fig.draw_artist(self.artist)
+
+    def update(self):
+        cv = self.canvas
+        fig = cv.figure
+        if self._bg is None:
+            self.on_draw(None)
+        else:
+            cv.restore_region(self._bg)
+            self._draw_animated()
+            cv.blit(fig.bbox)
+        cv.flush_events()
 
 class TrackingWidget:
     def __init__(self, data_path, B = 0.2, layers = 15, n_segments = 5, ecl_segments = 30, k = 3, dist = 0.1, noise = 0.05, linewidth = 5, show_truthbutton = False, continuous_update=True):
@@ -65,47 +99,71 @@ class TrackingWidget:
         self.update(1)
 
     def update(self,change):
-        [l.remove() for l in self.ax.lines]
-        [p.remove() for p in self.ax.patches]
-        self.tracker.segments["selected"] = "not"
-        for i, wphi in enumerate(self.phi):
-            self.select_particles[i].phi = wphi.value
-        for i, wcharge in enumerate(self.charge):
-            self.select_particles[i].charge = -1 if wcharge.value == "negative Ladung" else 1
-        for i, wr in enumerate(self.r):
-            self.select_particles[i].radius = wr.value/self.B
-        if self.show_truthbutton:
-            if self.truthbutton.value:
-                self.truth_particles[self.index].draw(self.ax)
+
+        if self.index is None:
+            drawtrace = False  
+            color_index_s = 0
+            color_index=0
+        else:   #alles mit self.index kann nur abgefragt werden, wenn self.index nicht nonetype ist 
+            
+            self.select_particles[self.index].phi = self.phi[self.index].value
+            self.select_particles[self.index].charge = -1 if self.charge[self.index].value == "negative Ladung" else 1
+            self.select_particles[self.index].radius = self.r[self.index].value/self.B
+            drawtrace = True
+            if self.show_truthbutton:
+                if self.truthbutton.value:
+                    trace=self.truth_particles[self.index].trace_array()
+                else:
+                    trace=self.select_particles[self.index].trace_array()
             else:
-                self.select_particles[self.index].draw(self.ax)
-        else:
-            self.select_particles[self.index].draw(self.ax)
+                trace=self.select_particles[self.index].trace_array()
+            color_index_s = self.tracker.get_hit_lines(self.select_particles[self.index])[:,0,0].size
+
+        segments=np.empty((0,100,2))
         for j in range(self.n_particles):
-            self.tracker.set_particle_selection(self.select_particles[j], hidden = True)
-        self.tracker.set_particle_selection(self.select_particles[self.index], hidden = False)
-        tracker_collection = self.tracker.get_collection()
-        self.ax.add_collection(tracker_collection)
-        if self.n_particles > 1:
-            phi = self.arrows_phi[self.index]
-            r = self.tracker.layers+2
-            rs = r+1
-            x,y = (np.cos(phi)*r, np.sin(phi)*r)
-            xs,ys = (np.cos(phi)*rs, np.sin(phi)*rs)
-            arrow = FancyArrowPatch(posA = (xs,ys), posB = (x,y), mutation_scale = 10)  #FancyArrowPatch(**self.arrows[self.index])
-            self.ax.add_patch(arrow)
-        self.ax.legend()
+            if j == self.index:
+                color_index = segments[:,0,0].size
+            segments = np.append(segments,self.tracker.get_hit_lines(self.select_particles[j]),axis=0)
+
+        colors=np.append(["yellow"]*color_index,["blue"]*color_index_s)
+        colors=np.append(colors,["yellow"]*(segments[:,0,0].size-colors.size))
+
+        if drawtrace == True:
+            segments=np.append(segments,[trace.T],axis=0)
+            colors=np.append(colors,["blue"])
+
+        self.artist.set_segments(segments)
+        self.artist.set_color(colors)
+        self.bm.update()
+
+        #if self.n_particles > 1:
+        #    phi = self.arrows_phi[self.index]
+        #    r = self.tracker.layers+2
+        #    rs = r+1
+        #    x,y = (np.cos(phi)*r, np.sin(phi)*r)
+        #    xs,ys = (np.cos(phi)*rs, np.sin(phi)*rs)
+        #    arrow = FancyArrowPatch(posA = (xs,ys), posB = (x,y), mutation_scale = 10)  #FancyArrowPatch(**self.arrows[self.index])
+        #    self.ax.add_patch(arrow)
+        #self.ax.legend()
             
     def show(self):
         self.out = widgets.Output()
         with self.out:
             self.fig, self.ax = plt.subplots(figsize=(7,7),constrained_layout=True)
-        self.fig.canvas.toolbar_position = 'left'
+
         limit = self.tracker.layers +3
-        self.ax.set_ylim([-limit, limit])
-        self.ax.set_xlim([-limit, limit])
+        self.ax.set_xlim(-limit,limit)
+        self.ax.set_ylim(-limit,limit)
+
+        segments = LineCollection([])
+        artist = self.ax.add_collection(segments)
+        self.artist=artist
+        self.artist.set_animated(True)
+        self.fig.canvas.toolbar_position = 'left'
         tracker_collection = self.tracker.get_collection()
         self.ax.add_collection(tracker_collection)
+        self.bm = BlitManager(self.fig.canvas , self.artist)
+
         self.r = []
         self.phi = []
         self.charge = []
@@ -149,8 +207,10 @@ class TrackingWidget:
         self.final_box = widgets.HBox([  self.tabs_box,self.plot_box])
         with self.out:
             plt.show()
+            plt.pause(.1)
+        self.fig.canvas.draw() 
         display(self.final_box)  
-        self.update(1)  
+        self.update(1)   
 
     @property
     def get_fitted_particles(self):
