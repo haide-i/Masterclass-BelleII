@@ -160,8 +160,9 @@ class TrackingWidget:
         self.artist=artist
         self.artist.set_animated(True)
         self.fig.canvas.toolbar_position = 'left'
-        tracker_collection = self.tracker.get_collection()
-        self.ax.add_collection(tracker_collection)
+        #tracker_collection = self.tracker.get_collection()
+        #self.ax.add_collection(tracker_collection)
+        self.ax.add_collection(self.tracker.get_tracker_collection(self.truth_particles))
         self.bm = BlitManager(self.fig.canvas , self.artist)
 
         self.r = []
