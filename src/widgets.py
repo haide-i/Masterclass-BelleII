@@ -320,7 +320,8 @@ class ECLWidget:
         self.energy_labels[self.particle_index].value = str(round(energy,4))
         
     def change_particle(self,change):
-        self.particle_index = self.particle.selected_index
+        if self.particle.selected_index is not None:
+            self.particle_index = self.particle.selected_index
         self.onselect([(0,0)])
         
     def show(self):
