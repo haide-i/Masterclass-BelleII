@@ -24,6 +24,13 @@ def make_box_layout():
         width = "1000px"
      )
 
+def get_arrow(posx,posy,phi,size=1):
+    x=(np.array([0,0,-2,2,0,0])*np.cos(phi)-np.array([-3,3,0,0,3,-3])*np.sin(phi))*size
+    y=(np.array([0,0,-2,2,0,0])*np.sin(phi)+np.array([-3,3,0,0,3,-3])*np.cos(phi))*size
+    arrow = np.append(np.array([x,y]).T,np.zeros((94,2)),axis=0)
+    arrow = arrow + [posx,posy]
+    return arrow
+
 class BlitManager:
     def __init__(self, canvas, artist):
         """copy from matplotlib website (blitting)"""
@@ -77,22 +84,21 @@ class TrackingWidget:
         self.select_particles = []
         self.truth_particles = []
         self.index = 0
-        self.arrows_phi = []
+        self.arrows = []
         for i in range(self.n_particles):
             # buidl actual particles
             p_df = self.particles_df.iloc[i]
             p = Particle(p_df["radius"], p_df["phi"], B, p_df["charge"])
             self.truth_particles.append(p)
             # make an arrow to corresponding ecl crystal
-            mask = self.tracker.check_hit(p)
-            phi = self.tracker.segments[mask].iloc[-1][["begin", "end"]].mean()
+            phi = self.tracker.get_arrowlocation(p)
             self.particles.append(p)
             self.tracker.mark_hits(p)
             # build dummy particles used for selection
             p = Particle(0.00001, 0, B, np.random.randint(0,1)*2-1)
             self.select_particles.append(p)
             
-            self.arrows_phi.append(phi)
+            self.arrows.append(get_arrow(posx=np.cos(phi)*(self.tracker.layers+2.8),posy=np.sin(phi)*(self.tracker.layers+2.8),phi = phi + np.pi/2,size=0.18))
     
     def change_particle(self,change):
         self.index = self.tabs.selected_index
@@ -130,21 +136,13 @@ class TrackingWidget:
 
         if drawtrace == True:
             segments=np.append(segments,[trace.T],axis=0)
-            colors=np.append(colors,["blue"])
+            segments=np.append(segments,[self.arrows[self.index]],axis=0)
+            colors=np.append(colors,["blue","green"])
 
         self.artist.set_segments(segments)
         self.artist.set_color(colors)
         self.bm.update()
 
-        #if self.n_particles > 1:
-        #    phi = self.arrows_phi[self.index]
-        #    r = self.tracker.layers+2
-        #    rs = r+1
-        #    x,y = (np.cos(phi)*r, np.sin(phi)*r)
-        #    xs,ys = (np.cos(phi)*rs, np.sin(phi)*rs)
-        #    arrow = FancyArrowPatch(posA = (xs,ys), posB = (x,y), mutation_scale = 10)  #FancyArrowPatch(**self.arrows[self.index])
-        #    self.ax.add_patch(arrow)
-        #self.ax.legend()
             
     def show(self):
         self.out = widgets.Output()

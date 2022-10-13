@@ -109,7 +109,7 @@ class Tracker:
         
         self.segments.loc[:,"radius"] = self.segments.loc[:,"radius"].astype("float")
 
-    def get_tracker_collection(self,truth_particles):     
+    def get_tracker_collection(self,truth_particles):       #important
         tracker = self.just_lines
         colors = ["gray"]*tracker[:,0,0].size
         linewidth = self.linewidths
@@ -136,15 +136,21 @@ class Tracker:
         colors = pd.concat([colors_tracking, colors_ecl, colors_edges])
         return colors
 
+    def get_arrowlocation(self,particle):                   #important
+        last_hit_segment = self.get_hit_lines(particle)[-1,:,:]
+        x,y = last_hit_segment.T
+        phi = np.arctan2(x,y)
+        return -np.mean(phi)+np.pi/2
+
     def get_collection(self):
         self.set_colors()
         line_collection = LineCollection(self.lines, color = self.get_colors(), linewidths = self.sizes)
         return line_collection
 
-    def get_hit_lines(self, particle):
+    def get_hit_lines(self, particle):                      #important
         return self.just_lines[self.check_hit(particle),:,:]
     
-    def check_hit(self, particle):
+    def check_hit(self, particle):                          #important
         d = particle.radius*particle.charge
         a=(self.segments.radius**2)/(2*d)
         h=np.sqrt(abs(self.segments.radius**2-a**2))
