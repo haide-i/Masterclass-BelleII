@@ -280,7 +280,8 @@ class ECLWidget:
         else:
             hits = data[coords].iloc[idx:(idx+1)]
         hits = hits.reset_index(drop=True)
-        self.ecal = ECal(144,46,hits, crystal_edge=5, noise_rate = noise_rate)   
+        self.edge_size = 5
+        self.ecal = ECal(144,46,hits, crystal_edge = self.edge_size, noise_rate = noise_rate)   
         content = deepcopy(self.ecal.crystals_df["content"])
         #content = np.log(content)
         self.alphas = np.clip(content,0.25,1)
@@ -292,7 +293,7 @@ class ECLWidget:
         ax.set_ylim(-10,46*5+10)
         ax.set_xlim(-10,144*5+10)
         ax.add_collection(self.ecal.collection)
-        self.crystall_points = ax.scatter(self.ecal.crystals_df["x"], self.ecal.crystals_df["y"], s=0)
+        self.crystall_points = ax.scatter(self.ecal.crystals_df["x"] + self.edge_size/2, self.ecal.crystals_df["y"] + self.edge_size/2, s=0)
         self.xys = self.crystall_points.get_offsets()
         self.Npts = len(self.xys)
         self.canvas = ax.figure.canvas
