@@ -112,7 +112,7 @@ class Tracker:
     def get_tracker_collection(self,truth_particles):       #important
         tracker = self.just_lines
         colors = ["gray"]*tracker[:,0,0].size
-        linewidth = self.linewidths
+        linewidth = (np.array(self.linewidths)*15/self.layers).tolist()
 
         for i in range(len(truth_particles)):
             hit_lines=self.get_hit_lines(truth_particles[i])

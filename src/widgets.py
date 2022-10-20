@@ -67,9 +67,9 @@ class BlitManager:
 
 class TrackingWidget:
     def __init__(self, data_path, B = 0.2, layers = 15, n_segments = 5, ecl_segments = 30, k = 3, dist = 0.1, noise = 0.05, linewidth = 5, show_truthbutton = False, continuous_update=True):
-        if layers > 20:
-            print("Es sind Maximal 20 Ebenen möglich!")
-            layers = 20
+        if layers > 40:
+            print("Es sind Maximal 40 Ebenen möglich!")
+            layers = 40
         self.continuous_update=continuous_update
         self.show_truthbutton = show_truthbutton
         self.particles_df = pd.read_hdf(data_path)
@@ -285,19 +285,18 @@ class ECLWidget:
         content = deepcopy(self.ecal.crystals_df["content"])
         #content = np.log(content)
         self.alphas = np.clip(content,0.25,1)
-        #self.subplot_kw = dict(xlim=(-5,725), ylim=(-5,235), autoscale_on=False)
         
         self.out = widgets.Output()
         with self.out:
-            fig, ax = plt.subplots(figsize=(15,6),constrained_layout=True)#, subplot_kw=self.subplot_kw, dpi=400)
+            fig, ax = plt.subplots(figsize=(15,6),constrained_layout=True)
         ax.set_ylim(-10,46*5+10)
         ax.set_xlim(-10,144*5+10)
-        ax.add_collection(self.ecal.collection)
-        self.crystall_points = ax.scatter(self.ecal.crystals_df["x"] + self.edge_size/2, self.ecal.crystals_df["y"] + self.edge_size/2, s=0)
-        self.xys = self.crystall_points.get_offsets()
+        self.artist = ax.add_collection(self.ecal.collection)
+        self.xys = np.array([self.ecal.crystals_df["x"] + self.edge_size/2,self.ecal.crystals_df["y"] + self.edge_size/2],dtype = "float64").T
         self.Npts = len(self.xys)
-        self.canvas = ax.figure.canvas
         self.lasso = LassoSelector(ax, onselect=self.onselect)
+        self.artist.set_animated(True)
+        self.bm_ecal = BlitManager(fig.canvas , self.artist)
         self.ind = []
         self.particle_index = 0
         
@@ -314,7 +313,7 @@ class ECLWidget:
         edgecolors = to_rgba_array(self.ecal.crystals_df.loc[:,"edgecolor"].to_numpy())
         self.ecal.collection.set_edgecolors(edgecolors)
         self.ecal.collection.set_facecolors(facecolors)
-        self.canvas.draw_idle()
+        self.bm_ecal.update()
         particle_mask = self.ecal.select_particles.loc[self.particle_index, :].to_numpy()>0
         energy = self.ecal.crystals_df.loc[particle_mask, "content"].sum()
         self.energy_labels[self.particle_index].value = str(round(energy,4))
