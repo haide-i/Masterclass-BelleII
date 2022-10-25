@@ -66,11 +66,12 @@ class BlitManager:
         cv.flush_events()
 
 class TrackingWidget:
-    def __init__(self, data_path, B = 0.2, layers = 15, n_segments = 5, ecl_segments = 30, k = 3, dist = 0.1, noise = 0.05, linewidth = 5, show_truthbutton = False, continuous_update=True):
+    def __init__(self, data_path, B = 0.2, layers = 15, n_segments = 5, ecl_segments = 30, k = 3, dist = 0.1, noise = 0.05, linewidth = 5, show_truthbutton = False, continuous_update=True, truthvalues=False):
         if layers > 40:
             print("Es sind Maximal 40 Ebenen möglich!")
             layers = 40
         self.continuous_update=continuous_update
+        self.truthvalues=truthvalues
         self.show_truthbutton = show_truthbutton
         self.particles_df = pd.read_hdf(data_path)
         self.particles_df.loc[:,'charge'] = self.particles_df.loc[:,'pdg']/abs(self.particles_df.loc[:,'pdg'])
@@ -112,9 +113,9 @@ class TrackingWidget:
             color_index=0
         else:   #alles mit self.index kann nur abgefragt werden, wenn self.index nicht nonetype ist 
             
-            self.select_particles[self.index].phi = self.phi[self.index].value
+            self.select_particles[self.index].phi = self.phi[self.index].value+self.phi_fine[self.index].value
             self.select_particles[self.index].charge = -1 if self.charge[self.index].value == "negative Ladung" else 1
-            self.select_particles[self.index].radius = self.r[self.index].value/self.B
+            self.select_particles[self.index].radius = (self.r[self.index].value+self.r_fine[self.index].value)/self.B
             drawtrace = True
             if self.show_truthbutton:
                 if self.truthbutton.value:
@@ -153,8 +154,7 @@ class TrackingWidget:
         self.ax.set_xlim(-limit,limit)
         self.ax.set_ylim(-limit,limit)
 
-        segments = LineCollection([])
-        artist = self.ax.add_collection(segments)
+        artist = self.ax.add_collection(LineCollection([]))
         self.artist=artist
         self.artist.set_animated(True)
         self.fig.canvas.toolbar_position = 'left'
@@ -164,23 +164,29 @@ class TrackingWidget:
         self.bm = BlitManager(self.fig.canvas , self.artist)
 
         self.r = []
+        self.r_fine = []
         self.phi = []
+        self.phi_fine = []
         self.charge = []
         self.box_list = []
         if self.show_truthbutton:
             self.truthbutton = widgets.ToggleButton(value = False, description = "Zeige wahres Teilchen")
             self.truthbutton.observe(self.update, names = "value")
         for i in range(self.n_particles):
-            self.r.append(widgets.FloatSlider(0 ,min = 0, max = 5, step = 0.01, description = r"$p_T$",continuous_update=self.continuous_update))
+            self.r.append(widgets.FloatSlider(self.particles_df.loc[i,"pt"] if self.truthvalues == True else 0,min = 0, max = 5, step = 0.01, description = r"$p_T$",continuous_update=self.continuous_update))
             self.r[i].observe(self.update, names = "value")
-            self.phi.append(widgets.FloatSlider(self.particles_df.loc[i,"phi"] ,min = -np.pi, max = np.pi, step = 0.01, description = f"$\phi$",continuous_update=self.continuous_update))
+            self.r_fine.append(widgets.FloatSlider(0 ,min = 0, max = 0.2, step = 0.002, description = r"$p_T fine$",continuous_update=self.continuous_update))
+            self.r_fine[i].observe(self.update, names = "value")
+            self.phi.append(widgets.FloatSlider(self.particles_df.loc[i,"phi"] if self.truthvalues == True else 0,min = -np.pi, max = np.pi, step = 0.01, description = f"$\phi$",continuous_update=self.continuous_update))
             self.phi[i].observe(self.update, names = "value")
+            self.phi_fine.append(widgets.FloatSlider(0 ,min = -0.15, max = 0.15, step = 0.001, description = f"$\phi fine$",continuous_update=self.continuous_update))
+            self.phi_fine[i].observe(self.update, names = "value")
             self.charge.append(widgets.RadioButtons(options=['positive Ladung', 'negative Ladung'],  description=''))
             self.charge[i].observe(self.update, names = "value")
             if self.show_truthbutton:
-                p_box = widgets.VBox([self.r[i],self.phi[i], self.charge[i], self.truthbutton])
+                p_box = widgets.VBox([self.r[i], self.r_fine[i], self.phi[i], self.phi_fine[i], self.charge[i], self.truthbutton])
             else:
-                p_box = widgets.VBox([self.r[i],self.phi[i], self.charge[i]])
+                p_box = widgets.VBox([self.r[i], self.r_fine[i], self.phi[i], self.phi_fine[i], self.charge[i]])
             self.box_list.append(p_box)
         self.tabs = widgets.Accordion()
         self.tabs.children = self.box_list
