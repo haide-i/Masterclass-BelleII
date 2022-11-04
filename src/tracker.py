@@ -41,9 +41,11 @@ def get_ecl_lines_single_array(radius, begin, end, width):
         return retx,rety
 
 class Tracker:
-    def __init__(self, layers, n_segments, ecl_segments, k = 2, dist = 0.2, noise = False, linewidth = 8):
+    def __init__(self, layers, n_segments, ecl_segments, k = 2, dist = 0.2, noise = False, linewidth = 8, ignore_noise = False):
         self.layers = layers
         self.noise = noise
+        self.ignore_noise = ignore_noise
+        self.total_segments=0
         self.n_segments = n_segments
         self.ecl_segments = ecl_segments
         self.just_lines = []
@@ -55,6 +57,7 @@ class Tracker:
         for l in range(1,layers+1):
             len_segment = 2*np.pi/(n_segments+k*l)
             for i in range(n_segments+k*l):
+                self.total_segments+=1
                 radius = l
                 begin = len_segment*i+dist/(l+1)+0.1
                 end = len_segment*(i+1)-dist/(l+1)+0.1
@@ -70,6 +73,7 @@ class Tracker:
         l = layers+1
         len_segment = 2*np.pi/(self.ecl_segments)#+k*l)
         for i in range(self.ecl_segments):#+k*l):
+            self.total_segments+=1
             radius = l
             begin = len_segment*i+(dist/(l+1))
             end = len_segment*(i+1)-(dist)/(l+1)
@@ -84,6 +88,8 @@ class Tracker:
             counter += 1
 
         self.just_lines=np.array(self.just_lines).transpose((0,2,1))
+        self.particle_masks=[]
+        self.tracker_mask=np.full(self.total_segments,False)
         self.lines = []
         
         # tack edgeline list at the front
@@ -109,23 +115,32 @@ class Tracker:
         
         self.segments.loc[:,"radius"] = self.segments.loc[:,"radius"].astype("float")
 
-    def get_tracker_collection(self,truth_particles):       #important
+    def make_tracker_mask(self,truth_particles):            #important
+        for i in range(len(truth_particles)):
+            self.particle_masks.append(self.check_hit(truth_particles[i]))
+            self.tracker_mask=np.logical_or(self.tracker_mask,self.particle_masks[i])
+        self.tracker_mask=np.logical_or(self.tracker_mask,self.noisemask)
+
+    def get_tracker_collection(self):                       #important
+        #just the tracker
         tracker = self.just_lines
         colors = ["gray"]*tracker[:,0,0].size
         linewidth = (np.array(self.linewidths)*15/self.layers).tolist()
-
-        for i in range(len(truth_particles)):
-            hit_lines=self.get_hit_lines(truth_particles[i])
-            tracker=np.append(tracker,hit_lines,axis=0)
-            colors.extend(["red"]*hit_lines[:,0,0].size)
-            linewidth.extend([2.5]*hit_lines[:,0,0].size)
-
-        noise_hits=self.just_lines[self.noisemask,:,:]
-        tracker=np.append(tracker,noise_hits,axis=0)
-        colors.extend(["red"]*noise_hits[:,0,0].size)
-        linewidth.extend([2.5]*noise_hits[:,0,0].size)
-
+        #hits in the tracker
+        hits=self.just_lines[self.tracker_mask,:,:]
+        tracker=np.append(tracker,hits,axis=0)
+        colors.extend(["red"]*hits[:,0,0].size)
+        linewidth.extend([2.5]*hits[:,0,0].size)
         return LineCollection(tracker, color = colors, linewidths = linewidth)
+
+    def get_hits_and_misses(self,particle,particle_index):   #important
+        if(self.ignore_noise == True):
+            hits=np.logical_and(self.check_hit(particle),self.particle_masks[particle_index])
+            misses=np.logical_and(self.check_hit(particle),np.logical_not(self.particle_masks[particle_index]))
+        else:
+            hits=np.logical_and(self.check_hit(particle),self.tracker_mask)
+            misses=np.logical_and(self.check_hit(particle),np.logical_not(self.tracker_mask))
+        return [hits.sum(),misses.sum()]
 
     def get_colors(self):
         colors_tracking = self.segments.query("type=='tracking'")["edgecolor"]
@@ -136,7 +151,7 @@ class Tracker:
         colors = pd.concat([colors_tracking, colors_ecl, colors_edges])
         return colors
 
-    def get_arrowlocation(self,particle):                   #important
+    def get_arrowangle(self,particle):                   #important
         last_hit_segment = self.get_hit_lines(particle)[-1,:,:]
         x,y = last_hit_segment.T
         phi = np.arctan2(x,y)

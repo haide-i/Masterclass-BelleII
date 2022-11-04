@@ -24,14 +24,14 @@ def make_box_layout():
         width = "1000px"
      )
 
-def get_arrow(posx,posy,phi,size=1):
+def get_arrow(posx,posy,phi,size=1): #returns (100,2) x,y array of an arrow at position x,y pointing at angle phi 
     x=(np.array([0,0,-2,2,0,0])*np.cos(phi)-np.array([-3,3,0,0,3,-3])*np.sin(phi))*size
     y=(np.array([0,0,-2,2,0,0])*np.sin(phi)+np.array([-3,3,0,0,3,-3])*np.cos(phi))*size
     arrow = np.append(np.array([x,y]).T,np.zeros((94,2)),axis=0)
     arrow = arrow + [posx,posy]
     return arrow
 
-class BlitManager:
+class BlitManager: #manages the blitting for tracker and ecal widget
     def __init__(self, canvas, artist):
         """copy from matplotlib website (blitting)"""
         self.canvas = canvas
@@ -66,41 +66,41 @@ class BlitManager:
         cv.flush_events()
 
 class TrackingWidget:
-    def __init__(self, data_path, B = 0.2, layers = 15, n_segments = 5, ecl_segments = 30, k = 3, dist = 0.1, noise = 0.05, linewidth = 5, show_truthbutton = False, continuous_update=True, truthvalues=False):
-        if layers > 40:
-            print("Es sind Maximal 40 Ebenen möglich!")
-            layers = 40
+    def __init__(self, data_path, B = 0.2, layers = 15, n_segments = 5, ecl_segments = 30, k = 3, dist = 0.1, noise = 0.05, linewidth = 5, show_truthbutton = False, continuous_update=True, truthvalues=False, ignore_noise=False ):
         self.continuous_update=continuous_update
         self.truthvalues=truthvalues
         self.show_truthbutton = show_truthbutton
         self.particles_df = pd.read_hdf(data_path)
         self.particles_df.loc[:,'charge'] = self.particles_df.loc[:,'pdg']/abs(self.particles_df.loc[:,'pdg'])
-        #self.particles_df.loc[:,'phi'] = self.particles_df.loc[:,'phi']*np.pi/180
         self.particles_df.reset_index(inplace = True, drop = True)
-        self.tracker = Tracker(layers = layers, n_segments = n_segments, ecl_segments=ecl_segments, k=k,dist=dist, noise = noise, linewidth = linewidth)
+        self.tracker = Tracker(layers = layers, n_segments = n_segments, ecl_segments=ecl_segments, k=k,dist=dist, noise = noise, linewidth = linewidth, ignore_noise = ignore_noise)
         self.n_particles = len(self.particles_df)
-        self.B = B
-        self.particles_df.loc[:, "radius"] = self.particles_df.loc[:,"pt"]/self.B #(self.particles_df.loc[:,"charge"]*self.B)
+        self.B = B*15/layers
+        self.particles_df.loc[:, "radius"] = self.particles_df.loc[:,"pt"]/self.B
         self.particles = []
         self.select_particles = []
         self.truth_particles = []
         self.index = 0
         self.arrows = []
         for i in range(self.n_particles):
-            # buidl actual particles
+
+            # build actual particles
             p_df = self.particles_df.iloc[i]
             p = Particle(p_df["radius"], p_df["phi"], B, p_df["charge"])
             self.truth_particles.append(p)
+
             # make an arrow to corresponding ecl crystal
-            phi = self.tracker.get_arrowlocation(p)
-            self.particles.append(p)
-            self.tracker.mark_hits(p)
+            arrow_phi = self.tracker.get_arrowangle(p)
+            arrow_x = np.cos(arrow_phi)*(self.tracker.layers+2.8)
+            arrow_y = np.sin(arrow_phi)*(self.tracker.layers+2.8)
+            self.arrows.append(get_arrow(posx=arrow_x,posy=arrow_y,phi = arrow_phi + np.pi/2,size=0.18))
+
             # build dummy particles used for selection
             p = Particle(0.00001, 0, B, np.random.randint(0,1)*2-1)
             self.select_particles.append(p)
+
+        self.tracker.make_tracker_mask(self.truth_particles)    
             
-            self.arrows.append(get_arrow(posx=np.cos(phi)*(self.tracker.layers+2.8),posy=np.sin(phi)*(self.tracker.layers+2.8),phi = phi + np.pi/2,size=0.18))
-    
     def change_particle(self,change):
         self.index = self.tabs.selected_index
         self.update(1)
@@ -116,6 +116,11 @@ class TrackingWidget:
             self.select_particles[self.index].phi = self.phi[self.index].value+self.phi_fine[self.index].value
             self.select_particles[self.index].charge = -1 if self.charge[self.index].value == "negative Ladung" else 1
             self.select_particles[self.index].radius = (self.r[self.index].value+self.r_fine[self.index].value)/self.B
+            self.r_label[self.index].value = str(round(self.select_particles[self.index].radius*self.B,6))
+            self.phi_label[self.index].value = str(round(self.select_particles[self.index].phi,6))
+            hits,misses=self.tracker.get_hits_and_misses(self.select_particles[self.index],self.index)
+            self.hit_n_misses[self.index].value = str(hits) + " hits & " + str(misses) + " misses"
+
             drawtrace = True
             if self.show_truthbutton:
                 if self.truthbutton.value:
@@ -158,13 +163,14 @@ class TrackingWidget:
         self.artist=artist
         self.artist.set_animated(True)
         self.fig.canvas.toolbar_position = 'left'
-        #tracker_collection = self.tracker.get_collection()
-        #self.ax.add_collection(tracker_collection)
-        self.ax.add_collection(self.tracker.get_tracker_collection(self.truth_particles))
+        self.ax.add_collection(self.tracker.get_tracker_collection())
         self.bm = BlitManager(self.fig.canvas , self.artist)
 
+        self.hit_n_misses = []
+        self.r_label = []
         self.r = []
         self.r_fine = []
+        self.phi_label = []
         self.phi = []
         self.phi_fine = []
         self.charge = []
@@ -173,20 +179,23 @@ class TrackingWidget:
             self.truthbutton = widgets.ToggleButton(value = False, description = "Zeige wahres Teilchen")
             self.truthbutton.observe(self.update, names = "value")
         for i in range(self.n_particles):
-            self.r.append(widgets.FloatSlider(self.particles_df.loc[i,"pt"] if self.truthvalues == True else 0,min = 0, max = 5, step = 0.01, description = r"$p_T$",continuous_update=self.continuous_update))
+            self.hit_n_misses.append(widgets.Text(description = "", value = "0 hits & 0 misses", disabled=True))
+            self.r_label.append(widgets.Text(description = "$p_T$:", value = "0", disabled=True))
+            self.r.append(widgets.FloatSlider(self.particles_df.loc[i,"pt"] if self.truthvalues == True else 0,min = 0, max = 5, step = 0.01, description = "$p_T$",continuous_update=self.continuous_update))
             self.r[i].observe(self.update, names = "value")
-            self.r_fine.append(widgets.FloatSlider(0 ,min = 0, max = 0.2, step = 0.002, description = r"$p_T fine$",continuous_update=self.continuous_update))
+            self.r_fine.append(widgets.FloatSlider(0 ,min = 0, max = 0.2, step = 0.001, description = "$p_T fine$",continuous_update=self.continuous_update))
             self.r_fine[i].observe(self.update, names = "value")
-            self.phi.append(widgets.FloatSlider(self.particles_df.loc[i,"phi"] if self.truthvalues == True else 0,min = -np.pi, max = np.pi, step = 0.01, description = f"$\phi$",continuous_update=self.continuous_update))
+            self.phi_label.append(widgets.Text(description = "$\phi$:", value = "0", disabled=True))
+            self.phi.append(widgets.FloatSlider(self.particles_df.loc[i,"phi"] if self.truthvalues == True else 0,min = -np.pi, max = np.pi, step = 0.01, description = "$\phi$",continuous_update=self.continuous_update))
             self.phi[i].observe(self.update, names = "value")
-            self.phi_fine.append(widgets.FloatSlider(0 ,min = -0.15, max = 0.15, step = 0.001, description = f"$\phi fine$",continuous_update=self.continuous_update))
+            self.phi_fine.append(widgets.FloatSlider(0 ,min = -0.15, max = 0.15, step = 0.001, description = "$\phi fine$",continuous_update=self.continuous_update))
             self.phi_fine[i].observe(self.update, names = "value")
             self.charge.append(widgets.RadioButtons(options=['positive Ladung', 'negative Ladung'],  description=''))
             self.charge[i].observe(self.update, names = "value")
             if self.show_truthbutton:
-                p_box = widgets.VBox([self.r[i], self.r_fine[i], self.phi[i], self.phi_fine[i], self.charge[i], self.truthbutton])
+                p_box = widgets.VBox([self.hit_n_misses[i],self.r_label[i],self.r[i], self.r_fine[i],self.phi_label[i], self.phi[i], self.phi_fine[i], self.charge[i], self.truthbutton])
             else:
-                p_box = widgets.VBox([self.r[i], self.r_fine[i], self.phi[i], self.phi_fine[i], self.charge[i]])
+                p_box = widgets.VBox([self.hit_n_misses[i],self.r_label[i],self.r[i], self.r_fine[i],self.phi_label[i], self.phi[i], self.phi_fine[i], self.charge[i]])
             self.box_list.append(p_box)
         self.tabs = widgets.Accordion()
         self.tabs.children = self.box_list
@@ -212,7 +221,7 @@ class TrackingWidget:
         self.final_box = widgets.HBox([  self.tabs_box,self.plot_box])
         with self.out:
             plt.show()
-            plt.pause(.1)
+        #plt.pause(.1)
         self.fig.canvas.draw() 
         display(self.final_box)  
         self.update(1)   
