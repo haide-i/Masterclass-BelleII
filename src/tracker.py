@@ -3,14 +3,11 @@ from matplotlib.collections import LineCollection
 import numpy as np
 import pandas as pd
 
-
-granularity = 100  #must be multiple of 4
-
-def get_track_line(radius, begin, end):
+def get_track_line(radius, begin, end, granularity = 100):
     t = np.linspace(begin, end, granularity)
     return radius*np.cos(t), radius*np.sin(t)
 
-def get_ecl_lines(radius, begin, end, width):
+def get_ecl_lines(radius, begin, end, width, granularity = 100):
         t = np.linspace(begin, end, int(granularity/4))   
         ti = np.linspace(end, begin, int(granularity/4))
         inner_x = radius*np.cos(t)
@@ -29,9 +26,10 @@ def get_ecl_lines(radius, begin, end, width):
         return retx,rety
 
 class Tracker:
-    def __init__(self, layers, n_segments, ecl_segments, k = 2, dist = 0.2, noise = False, linewidth = 8, ignore_noise = False):
+    def __init__(self, layers, n_segments, ecl_segments, k = 2, dist = 0.2, noise = False, linewidth = 8, ignore_noise = False, granularity=100):
         self.layers = layers                                                    #number of layers in the tracker (including ecl segments)
         self.noise = noise                                                      #noisefloor constant
+        self.granularity = granularity                                                  
         self.ignore_noise = ignore_noise                                        #only important for hits&misses , if true noise hits will not be counted
         self.total_segments=0                                                   #will contain number segments aufter initialisation
         self.n_segments = n_segments                                            #number of segments in the first layer
@@ -50,7 +48,7 @@ class Tracker:
                 size = linewidth
                 self.noisemask.append(True if np.random.rand()<self.noise else False) 
                 self.linewidths.append(size*2) 
-                self.all_lines.append(np.array(get_track_line(radius, begin, end)))
+                self.all_lines.append(np.array(get_track_line(radius, begin, end,self.granularity)))
                 self.segments.loc[self.total_segments,:] = [begin,end,radius]
         l = layers+1
         len_segment = 2*np.pi/(self.ecl_segments)#+k*l)
@@ -62,7 +60,7 @@ class Tracker:
             size = 3
             self.linewidths.append(size*1.3)                      
             self.noisemask.append(True if np.random.rand()<self.noise else False) 
-            self.all_lines.append(np.array(get_ecl_lines(radius, begin, end, 1)))
+            self.all_lines.append(np.array(get_ecl_lines(radius, begin, end, 1,self.granularity)))
             self.segments.loc[self.total_segments,:] = [begin,end,radius]
 
         self.all_lines=np.array(self.all_lines).transpose((0,2,1))
@@ -99,14 +97,23 @@ class Tracker:
         return [hits.sum(),misses.sum()]
 
     def get_arrowangle(self,particle):
-        last_hit_segment = self.get_hit_lines(particle)[-1,:,:]
+        last_hit_segment = (self.all_lines[self.check_hit(particle),:,:])[-1,:,:]
         x,y = last_hit_segment.T
         phi = np.arctan2(x,y)
         return -np.mean(phi)+np.pi/2
-
-    def get_hit_lines(self, particle):
-        return self.all_lines[self.check_hit(particle),:,:]
     
+    def get_hit_lines(self,particles,particle_index):
+        segments=np.empty((0,self.granularity,2))
+        colors=[]
+        for i in range(len(particles)):
+            check_hit=self.check_hit(particles[i])
+            segments=np.append(segments,self.all_lines[check_hit,:,:],axis=0)
+            if(i == particle_index):
+                colors.extend(["blue"]*check_hit.sum())
+            else:
+                colors.extend(["yellow"]*check_hit.sum())
+        return segments,colors
+
     def check_hit(self, particle):
         d = particle.radius*particle.charge
         a=(self.segments.radius**2)/(2*d)

@@ -69,11 +69,12 @@ class TrackingWidget:
     def __init__(self, data_path, B = 0.2, layers = 15, n_segments = 5, ecl_segments = 30, k = 3, dist = 0.1, noise = 0.05, linewidth = 5, show_truthbutton = False, continuous_update=True, truthvalues=False, ignore_noise=False ):
         self.continuous_update=continuous_update
         self.truthvalues=truthvalues
+        self.granularity=100      #must be multiple of 4
         self.show_truthbutton = show_truthbutton
         self.particles_df = pd.read_hdf(data_path)
         self.particles_df.loc[:,'charge'] = self.particles_df.loc[:,'pdg']/abs(self.particles_df.loc[:,'pdg'])
         self.particles_df.reset_index(inplace = True, drop = True)
-        self.tracker = Tracker(layers = layers, n_segments = n_segments, ecl_segments=ecl_segments, k=k,dist=dist, noise = noise, linewidth = linewidth, ignore_noise = ignore_noise)
+        self.tracker = Tracker(layers = layers, n_segments = n_segments, ecl_segments=ecl_segments, k=k,dist=dist, noise = noise, linewidth = linewidth, ignore_noise = ignore_noise,granularity=self.granularity)
         self.n_particles = len(self.particles_df)
         self.B = B*15/layers
         self.particles_df.loc[:, "radius"] = self.particles_df.loc[:,"pt"]/self.B
@@ -83,10 +84,9 @@ class TrackingWidget:
         self.index = 0
         self.arrows = []
         for i in range(self.n_particles):
-
             # build actual particles
             p_df = self.particles_df.iloc[i]
-            p = Particle(p_df["radius"], p_df["phi"], B, p_df["charge"])
+            p = Particle(p_df["radius"], p_df["phi"], B, p_df["charge"], granularity=self.granularity)
             self.truth_particles.append(p)
 
             # make an arrow to corresponding ecl crystal
@@ -109,17 +109,12 @@ class TrackingWidget:
 
         if self.index is None:
             drawtrace = False  
-            color_index_s = 0
-            color_index=0
-        else:   #alles mit self.index kann nur abgefragt werden, wenn self.index nicht nonetype ist 
-            
+        else:   #alles mit self.index kann nur abgefragt werden, wenn self.index nicht nonetype ist  
             self.select_particles[self.index].phi = self.phi[self.index].value+self.phi_fine[self.index].value
             self.select_particles[self.index].charge = -1 if self.charge[self.index].value == "negative Ladung" else 1
             self.select_particles[self.index].radius = (self.r[self.index].value+self.r_fine[self.index].value)/self.B
             self.r_label[self.index].value = str(round(self.select_particles[self.index].radius*self.B,6))
             self.phi_label[self.index].value = str(round(self.select_particles[self.index].phi,6))
-            hits,misses=self.tracker.get_hits_and_misses(self.select_particles[self.index],self.index)
-            self.hit_n_misses[self.index].value = str(hits) + " hits & " + str(misses) + " misses"
 
             drawtrace = True
             if self.show_truthbutton:
@@ -129,17 +124,11 @@ class TrackingWidget:
                     trace=self.select_particles[self.index].trace_array()
             else:
                 trace=self.select_particles[self.index].trace_array()
-            color_index_s = self.tracker.get_hit_lines(self.select_particles[self.index])[:,0,0].size
 
-        segments=np.empty((0,100,2))
-        for j in range(self.n_particles):
-            if j == self.index:
-                color_index = segments[:,0,0].size
-            segments = np.append(segments,self.tracker.get_hit_lines(self.select_particles[j]),axis=0)
-
-        colors=np.append(["yellow"]*color_index,["blue"]*color_index_s)
-        colors=np.append(colors,["yellow"]*(segments[:,0,0].size-colors.size))
-
+            hits,misses=self.tracker.get_hits_and_misses(self.select_particles[self.index],self.index)
+            self.hit_n_misses[self.index].value = str(hits) + " hits & " + str(misses) + " misses"
+        
+        segments,colors=self.tracker.get_hit_lines(self.select_particles,self.index)
         if drawtrace == True:
             segments=np.append(segments,[trace.T],axis=0)
             segments=np.append(segments,[self.arrows[self.index]],axis=0)
