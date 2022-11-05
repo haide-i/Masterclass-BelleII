@@ -197,6 +197,7 @@ class TrackingWidget:
             else:
                 p_box = widgets.VBox([self.hit_n_misses[i],self.r_label[i],self.r[i], self.r_fine[i],self.phi_label[i], self.phi[i], self.phi_fine[i], self.charge[i]])
             self.box_list.append(p_box)
+        
         self.tabs = widgets.Accordion()
         self.tabs.children = self.box_list
         for i in range(self.n_particles):
