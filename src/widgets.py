@@ -24,10 +24,10 @@ def make_box_layout():
         width = "1000px"
      )
 
-def get_arrow(posx,posy,phi,size=1): #returns (100,2) x,y array of an arrow at position x,y pointing at angle phi 
+def get_arrow(posx,posy,phi,size=1,granularity=100): #returns (100,2) x,y array of an arrow at position x,y pointing at angle phi 
     x=(np.array([0,0,-2,2,0,0])*np.cos(phi)-np.array([-3,3,0,0,3,-3])*np.sin(phi))*size
     y=(np.array([0,0,-2,2,0,0])*np.sin(phi)+np.array([-3,3,0,0,3,-3])*np.cos(phi))*size
-    arrow = np.append(np.array([x,y]).T,np.zeros((94,2)),axis=0)
+    arrow = np.append(np.array([x,y]).T,np.zeros((granularity-6,2)),axis=0)
     arrow = arrow + [posx,posy]
     return arrow
 
@@ -66,7 +66,7 @@ class BlitManager: #manages the blitting for tracker and ecal widget
         cv.flush_events()
 
 class TrackingWidget:
-    def __init__(self, data_path, B = 0.2, layers = 15, n_segments = 5, ecl_segments = 30, k = 3, dist = 0.1, noise = 0.05, linewidth = 5, show_truthbutton = False, continuous_update=True, truthvalues=False, ignore_noise=False ):
+    def __init__(self, data_path, B = 0.2, layers = 15, n_segments = 5, ecl_segments = 30, k = 3, dist = 0.1, noise = 0.05, linewidth = 5, show_truthbutton = False, continuous_update=True, truthvalues=False, ignore_noise=False, trackercolor="gray"):
         self.continuous_update=continuous_update
         self.truthvalues=truthvalues
         self.granularity=100      #must be multiple of 4
@@ -74,7 +74,7 @@ class TrackingWidget:
         self.particles_df = pd.read_hdf(data_path)
         self.particles_df.loc[:,'charge'] = self.particles_df.loc[:,'pdg']/abs(self.particles_df.loc[:,'pdg'])
         self.particles_df.reset_index(inplace = True, drop = True)
-        self.tracker = Tracker(layers = layers, n_segments = n_segments, ecl_segments=ecl_segments, k=k,dist=dist, noise = noise, linewidth = linewidth, ignore_noise = ignore_noise,granularity=self.granularity)
+        self.tracker = Tracker(layers = layers, n_segments = n_segments, ecl_segments=ecl_segments, k=k,dist=dist, noise = noise, linewidth = linewidth, ignore_noise = ignore_noise,granularity=self.granularity,trackercolor=trackercolor)
         self.n_particles = len(self.particles_df)
         self.B = B*15/layers
         self.particles_df.loc[:, "radius"] = self.particles_df.loc[:,"pt"]/self.B
@@ -86,17 +86,17 @@ class TrackingWidget:
         for i in range(self.n_particles):
             # build actual particles
             p_df = self.particles_df.iloc[i]
-            p = Particle(p_df["radius"], p_df["phi"], B, p_df["charge"], granularity=self.granularity)
+            p = Particle(p_df["radius"], p_df["phi"], self.B, p_df["charge"], granularity=self.granularity)
             self.truth_particles.append(p)
 
             # make an arrow to corresponding ecl crystal
             arrow_phi = self.tracker.get_arrowangle(p)
             arrow_x = np.cos(arrow_phi)*(self.tracker.layers+2.8)
             arrow_y = np.sin(arrow_phi)*(self.tracker.layers+2.8)
-            self.arrows.append(get_arrow(posx=arrow_x,posy=arrow_y,phi = arrow_phi + np.pi/2,size=0.18))
+            self.arrows.append(get_arrow(posx=arrow_x,posy=arrow_y,phi = arrow_phi + np.pi/2,size=0.18,granularity=self.granularity))
 
             # build dummy particles used for selection
-            p = Particle(0.00001, 0, B, np.random.randint(0,1)*2-1)
+            p = Particle(0.00001, 0, self.B, np.random.randint(0,1)*2-1)
             self.select_particles.append(p)
 
         self.tracker.make_tracker_mask(self.truth_particles)    
@@ -211,7 +211,7 @@ class TrackingWidget:
         self.final_box = widgets.HBox([  self.tabs_box,self.plot_box])
         with self.out:
             plt.show()
-        #plt.pause(.1)
+            #plt.pause(.1)
         self.fig.canvas.draw() 
         display(self.final_box)  
         self.update(1)   
@@ -232,34 +232,36 @@ class TestDetektor:
         if layers > 20:
             print("Es sind maximal 20 Schichten möglich!")
             layers = 20
-        self.tracker = Tracker(layers = layers, n_segments = n_segments,k=k ,ecl_segments=ecl_segments,noise = False, linewidth = 4)
+        self.tracker = Tracker(layers = layers, n_segments = n_segments,k=k ,ecl_segments=ecl_segments,noise = False, linewidth = 2)
         self.B = B
         self.particle = Particle(1, 0, B,-1)
         self.pt = 10
 
     def update(self,change):
-        [l.remove() for l in self.ax.lines]
-        self.tracker.segments["content"] = "empty"
         self.particle.charge = -1 if self.charge_widget.value == "negative Ladung" else 1
-        
-        #self.particle.charge = self.charge_widget.value*2-1
         self.B = self.b_widget.value/5
-        self.particle.B = self.B
-
+        self.particle.B = self.B    
         self.particle.radius = self.pt_widget.value/self.B if self.B != 0 else 100000
-        self.particle.draw(self.ax)
-        self.tracker.mark_hits(self.particle)
-        tracker_collection = self.tracker.get_collection()
-        
-        self.ax.add_collection(tracker_collection)
+        trace=self.particle.trace_array()
+        segments,colors=self.tracker.get_hit_lines([self.particle],0)
+        segments=np.append(segments,[trace.T],axis=0)
+        colors=np.append(colors,["blue"])
+        self.artist.set_segments(segments)
+        self.artist.set_color(colors)
+        self.bm.update()
 
     def show(self):
         self.fig, self.ax = plt.subplots(figsize=(7,7))
-        lim = self.tracker.layers*1.5
+
+        lim = self.tracker.layers+3
         self.ax.set_ylim([-lim,lim])
         self.ax.set_xlim([-lim,lim])
-        tracker_collection = self.tracker.get_collection()
-        self.ax.add_collection(tracker_collection)
+        artist = self.ax.add_collection(LineCollection([]))
+        self.artist=artist
+        self.artist.set_animated(True)
+        self.fig.canvas.toolbar_position = 'left'
+        self.ax.add_collection(self.tracker.get_tracker_collection())
+        self.bm = BlitManager(self.fig.canvas , self.artist)        
         
         self.pt_widget= widgets.FloatSlider(1 ,min = 0.1, max = 4, step = 0.1, description = f"$p_t$")
         self.pt_widget.observe(self.update, names = "value")
@@ -365,10 +367,6 @@ class ECLWidget:
         return pd.DataFrame(radius, columns= ["Radius"])
 
 
-
-
-
-
 true_particle_data = [[0.511, 1],
                       [0.511, -1],
                       [105., +1],
@@ -389,17 +387,19 @@ truth_particles = pd.DataFrame(columns = ["Masse", "Ladung"], data=true_particle
 truth_particles.loc[:, "Masse"] = truth_particles["Masse"]*10**(-3)
 
 class MatchingWidget:
-    def __init__(self, ew, tw) -> None:
+    def __init__(self, ew, tw, cheat_mode=True, cheating_threshhold = 1e-2) -> None:
         self.energies = ew.get_particles_energy
         self.radius = ew.get_particles_radius
         self.momenta = tw.get_fitted_particles  
-        columns = ["Ladung", "Energie", "Momentum", "Masse", "Radius"]
+        columns = ["Ladung", "Energie", "impuls", "Masse", "Radius"]
         self.true_df = tw.particles_df
         self.res_df = pd.DataFrame(data = np.zeros((len(self.energies), len(columns))), columns = columns)
         #self.res_df.loc[:,"pt"] = np.sqrt(( self.momenta.loc[:,["px", "py"]]**2).sum())
-        self.diff_mask = ((self.true_df["pt"]-self.momenta["pt"])<1e-2).to_numpy()
-        self.momenta.loc[self.diff_mask, ["px", "py", "pz"]] =  self.true_df.loc[self.diff_mask, ["px", "py", "pz"]]
-        self.energies.loc[self.diff_mask, "Energie"] = self.true_df.loc[self.diff_mask, "energy"]   
+        if(cheat_mode):
+            self.momenta_cheat_mask = ((self.true_df["pt"]-self.momenta["pt"])<cheating_threshhold).to_numpy()
+            self.energies_cheat_mask = ((self.true_df["energy"]-self.energies["Energie"])<cheating_threshhold).to_numpy()
+            self.momenta.loc[self.momenta_cheat_mask, ["px", "py", "pz"]] =  self.true_df.loc[self.momenta_cheat_mask, ["px", "py", "pz"]]
+            self.energies.loc[self.energies_cheat_mask, "Energie"] = self.true_df.loc[self.energies_cheat_mask, "energy"] 
 
             
     def update(self, change = 0):
@@ -407,16 +407,16 @@ class MatchingWidget:
         self.res_df.loc[sele_index, "Energie"] = self.energies.loc[sele_index, "Energie"]
         self.res_df.loc[sele_index, "Radius"] = np.nan_to_num(self.radius.loc[sele_index, "Radius"])
         self.res_df.loc[sele_index, "Ladung"] = self.momenta.loc[sele_index, "Ladung"]
-        self.res_df.loc[sele_index, "Momentum"] = np.sqrt((self.momenta.loc[sele_index, ["px", "py", "pz"]]**2).sum().astype("float"))
-        # if self.res_df.loc[:, "Energie"] > self.res_df.loc[:, "Momentum"]:
-        self.res_df.loc[:, "Masse"] = np.sqrt(self.res_df.loc[:, "Energie"]**2 - self.res_df.loc[:, "Momentum"]**2)
+        self.res_df.loc[sele_index, "impuls"] = np.sqrt((self.momenta.loc[sele_index, ["px", "py", "pz"]]**2).sum().astype("float"))
+        # if self.res_df.loc[:, "Energie"] > self.res_df.loc[:, "impuls"]:
+        self.res_df.loc[:, "Masse"] = np.sqrt(abs(self.res_df.loc[:, "Energie"]**2 - self.res_df.loc[:, "impuls"]**2))
         self.res_df.loc[:, "Masse"] = self.res_df.loc[:, "Masse"].fillna(0)
         self.charge_comp[sele_index].value = str(self.res_df.loc[sele_index, "Ladung"] - truth_particles.loc[self.part_ids[sele_index].value, "Ladung"])
         self.mass_comp[sele_index].value = str(self.res_df.loc[sele_index, "Masse"] - truth_particles.loc[self.part_ids[sele_index].value, "Masse"])
         for i in range(len(self.res_df)):
             self.energy_txt[i].value = str(self.res_df.loc[sele_index, "Energie"])
             self.charge_txt[i].value = str(self.res_df.loc[sele_index, "Ladung"])
-            self.moment_txt[i].value = str(self.res_df.loc[sele_index, "Momentum"])
+            self.moment_txt[i].value = str(self.res_df.loc[sele_index, "impuls"])
             self.invmas_txt[i].value = str(self.res_df.loc[sele_index, "Masse"])
             self.radius_txt[i].value = str(self.res_df.loc[sele_index, "Radius"])
             self.px_txt[i].value = str(self.momenta.loc[sele_index, "px"])
@@ -442,7 +442,7 @@ class MatchingWidget:
             self.pz_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "$p_z$", disabled = True))
             self.energy_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Energie", disabled = True))
             self.charge_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Ladung", disabled = True))
-            self.moment_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Momentum", disabled = True))
+            self.moment_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "impuls", disabled = True))
             self.invmas_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Masse", disabled = True))
             self.radius_txt.append(widgets.Text(placeholder = "kein Teilchen ausgewählt", description = "Radius", disabled = True))
             self.partic_list = widgets.HTML(value= truth_particles.to_html(), description = "bekannte Teilchen")

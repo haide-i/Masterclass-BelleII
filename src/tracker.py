@@ -26,9 +26,10 @@ def get_ecl_lines(radius, begin, end, width, granularity = 100):
         return retx,rety
 
 class Tracker:
-    def __init__(self, layers, n_segments, ecl_segments, k = 2, dist = 0.2, noise = False, linewidth = 8, ignore_noise = False, granularity=100):
+    def __init__(self, layers, n_segments, ecl_segments, k = 2, dist = 0.2, noise = False, linewidth = 8, ignore_noise = False, granularity=100, trackercolor="gray"):
         self.layers = layers                                                    #number of layers in the tracker (including ecl segments)
         self.noise = noise                                                      #noisefloor constant
+        self.trackercolor=trackercolor
         self.granularity = granularity                                                  
         self.ignore_noise = ignore_noise                                        #only important for hits&misses , if true noise hits will not be counted
         self.total_segments=0                                                   #will contain number segments aufter initialisation
@@ -57,7 +58,7 @@ class Tracker:
             radius = l
             begin = len_segment*i+(dist/(l+1))
             end = len_segment*(i+1)-(dist)/(l+1)
-            size = 3
+            size = 3*linewidth/5
             self.linewidths.append(size*1.3)                      
             self.noisemask.append(True if np.random.rand()<self.noise else False) 
             self.all_lines.append(np.array(get_ecl_lines(radius, begin, end, 1,self.granularity)))
@@ -78,7 +79,7 @@ class Tracker:
     def get_tracker_collection(self):
         #just the tracker
         tracker = self.all_lines
-        colors = ["gray"]*tracker[:,0,0].size
+        colors = [self.trackercolor]*tracker[:,0,0].size
         linewidth = (np.array(self.linewidths)*15/self.layers).tolist()
         #hits in the tracker
         hits=self.all_lines[self.tracker_mask,:,:]
